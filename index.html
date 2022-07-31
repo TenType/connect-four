@@ -6,7 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="css/styles.css" rel="stylesheet">
-    <script src="js/index.js"></script>
+    <script src="js/index.js" defer></script>
     <title>Connect Four</title>
 </head>
 
@@ -17,10 +17,9 @@
         </div>
     </nav>
     <div class="container">
-        <p id="game"></p>
-        <p id="feedback"></p>
-        <input id="move" type="number" min="1" max="7">
-        <button id="action-button" onclick="makeMove()">Act</button>
+        <div id="board">
+            <!-- Grid inserted here -->
+        </div>
     </div>
 </body>
 

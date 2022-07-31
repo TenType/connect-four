@@ -1,6 +1,10 @@
+:root {
+    --board-color: #147bfa;
+}
+
 body {
     background-color: whitesmoke;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
     font-size: 1.25rem;
     margin: 0;
 }
@@ -27,7 +31,32 @@ body {
     margin: 20px;
 }
 
-#game {
-    font-family: 'Courier New', Courier, monospace;
-    font-weight: bold;
+#board {
+    width: 420px;
+    height: 360px;
+    border: 5px solid var(--board-color);
+    border-radius: 15px;
+    margin: 10px;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+}
+
+.tile {
+    position: relative;
+}
+
+.tile::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(transparent 60%, var(--board-color) 60%);
+    z-index: 1;
+}
+
+.piece {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
 }
