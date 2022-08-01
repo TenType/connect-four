@@ -44,6 +44,7 @@ body {
 
 .tile {
     position: relative;
+    cursor: pointer;
 }
 
 .tile::before {
