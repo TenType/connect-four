@@ -33,6 +33,9 @@ function makeMove(col) {
 
     const { row, player, animation } = dropPiece(col);
 
+    moves.push(col + 1);
+    moveHistory.value = moves.join('');
+
     if (checkIfDraw(row)) {
         gameOver = true;
         animation.then(() => {
@@ -53,8 +56,6 @@ function makeMove(col) {
     }
 
     flipTurn();
-
-    moves.push(col + 1);
     updateMenu();
 }
 
@@ -109,8 +110,6 @@ function updateMenu() {
     turn.innerHTML = `Player ${player}'s Turn`;
 
     counter.innerHTML = `Turn ${Math.ceil((moves.length + 1) / 2)}, Move ${moves.length + 1}`;
-
-    moveHistory.value = moves.join('');
 }
 
 function checkIfDraw(row) {
