@@ -1,28 +1,20 @@
 const ROWS = 6;
 const COLUMNS = 7;
 const board = new Array(ROWS).fill(0).map(() => new Array(COLUMNS).fill(0));
-const gradientDark = 0.6;
+const pieceColors = ['bg-red', 'bg-yellow'];
+const moves = [];
 
 const boardHTML = document.getElementById('board');
-
-class RGB {
-    constructor(red, green, blue) {
-        this.red = red;
-        this.green = green;
-        this.blue = blue;
-    }
-}
-
-const colors = [
-    new RGB(50, 50, 50),
-    new RGB(255, 22, 22),
-    new RGB(230, 225, 0),
-];
+const menu = document.getElementById('menu');
+const turn = document.getElementById('turn');
+const counter = document.getElementById('turn-counter');
+const moveHistory = document.getElementById('history');
 
 let turnClock = true;
 let gameOver = false;
 
 createBoard();
+updateMenu();
 
 function createBoard() {
     for (let row = 0; row < ROWS; row++) {
@@ -44,7 +36,9 @@ function makeMove(col) {
     if (checkIfDraw(row)) {
         gameOver = true;
         animation.then(() => {
-            alert('The game is a draw!');
+            menu.dataset.done = 'true';
+            menu.classList = 'border-0';
+            turn.innerHTML = 'Draw';
         });
         return;
     }
@@ -52,12 +46,16 @@ function makeMove(col) {
     if (checkIfMoveWins(row, col, player)) {
         gameOver = true;
         animation.then(() => {
-            alert(`Player ${player} wins!`);
+            menu.dataset.done = 'true';
+            turn.innerHTML = `Player ${player} wins!`;
         });
         return;
     }
 
     flipTurn();
+
+    moves.push(col + 1);
+    updateMenu();
 }
 
 function dropPiece(col) {
@@ -71,7 +69,7 @@ function dropPiece(col) {
 
     const pieceDiv = document.createElement('div');
     pieceDiv.classList.add('piece');
-    pieceDiv.style.backgroundImage = getPieceColor(player);
+    pieceDiv.classList.add(pieceColors[player - 1]);
 
     const location = boardHTML.children[row * 7 + col];
     location.appendChild(pieceDiv);
@@ -96,18 +94,23 @@ function dropPiece(col) {
     return { row, player, animation: animation.finished };
 }
 
-function getPieceColor(n) {
-    const bright = `rgb(${colors[n].red}, ${colors[n].green}, ${colors[n].blue})`;
-    const dark = `rgb(${colors[n].red * gradientDark}, ${colors[n].green * gradientDark}, ${colors[n].blue * gradientDark})`;
-    return `linear-gradient(${bright}, ${dark})`;
-}
-
 function getCurrentPlayer() {
     return turnClock ? 1 : 2;
 }
 
 function flipTurn() {
     turnClock = !turnClock;
+}
+
+function updateMenu() {
+    const player = getCurrentPlayer();
+
+    menu.classList = `border-${player}`;
+    turn.innerHTML = `Player ${player}'s Turn`;
+
+    counter.innerHTML = `Turn ${Math.ceil((moves.length + 1) / 2)}, Move ${moves.length + 1}`;
+
+    moveHistory.value = moves.join('');
 }
 
 function checkIfDraw(row) {
