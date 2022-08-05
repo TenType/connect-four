@@ -4,6 +4,7 @@ const PIECE_COLORS = ['bg-red', 'bg-yellow'];
 const FALLING_EASE = 'cubic-bezier(0.22, 0, 0.42, 0)';
 const FALLING_OFFSET = 60;
 
+// References to elements in the document
 const grid = document.getElementById('board');
 const menu = document.getElementById('menu');
 const turn = document.getElementById('turn');
@@ -20,37 +21,48 @@ createBoard();
 newGame();
 
 function newGame() {
+    // Initialize the board with zeroes
     board = new Array(ROWS).fill(0).map(() => new Array(COLUMNS).fill(0));
+
+    // Reset all variables
     turnClock = true;
     gameOver = false;
     moves = [];
 
+    // Reset HTML data
     menu.dataset.done = '';
     resetButton.dataset.primary = '';
     moveHistory.value = '';
+
     updateMenu();
 }
 
 function createBoard() {
+    // Fill up the grid with tiles
     for (let row = 0; row < ROWS; row++) {
         for (let col = 0; col < COLUMNS; col++) {
             const tile = document.createElement('div');
             tile.classList.add('tile');
             grid.append(tile);
 
+            // Drop a piece for the current player when a column is clicked
             tile.onclick = () => makeMove(col);
         }
     }
 }
 
 function makeMove(col) {
+    // Check if game over or the column is full
     if (gameOver || board[0][col] != 0) return;
 
+    // Animate dropping the piece
     const { row, player, animation } = dropPiece(col);
 
+    // Save it to the move history
     moves.push(col + 1);
     moveHistory.value = moves.join('');
 
+    // Draw game
     if (checkIfDraw(row)) {
         gameOver = true;
         animation.onfinish = () => {
@@ -61,6 +73,7 @@ function makeMove(col) {
         return;
     }
 
+    // Connect Four
     let matchingPieces = checkIfMoveWins(row, col, player);
     if (matchingPieces.length) {
         gameOver = true;
@@ -68,6 +81,7 @@ function makeMove(col) {
             endGame();
             turn.innerHTML = `Player ${player} wins!`;
 
+            // Set a blinking animation for the pieces in the Connect Four
             for (const [row, col] of matchingPieces) {
                 const piece = grid.children[row * 7 + col].firstChild;
                 piece.dataset.win = true;
@@ -76,30 +90,37 @@ function makeMove(col) {
         return;
     }
 
+    // Next turn
     flipTurn();
     updateMenu();
 }
 
 function dropPiece(col) {
+    // Find row of dropped piece
     let row = board.length - 1;
     while (board[row][col] != 0) {
         row--;
     }
 
+    // Update the board state
     const player = getCurrentPlayer();
     board[row][col] = player;
 
+    // Create the piece
     const piece = document.createElement('div');
     piece.classList.add('piece');
     piece.classList.add(PIECE_COLORS[player - 1]);
 
+    // Append the piece to the location in the grid
     const location = grid.children[row * 7 + col];
     location.appendChild(piece);
 
+    // Calculate the distance needed for the piece to fall to its location
     const topY = grid.children[0].getBoundingClientRect().y;
     const pieceY = piece.getBoundingClientRect().y;
     const distance = topY - pieceY - FALLING_OFFSET;
 
+    // Animate dropping the piece
     const animation = piece.animate(
         {
             transform: [
@@ -113,7 +134,7 @@ function dropPiece(col) {
         500
     );
 
-    return { row, player, animation};
+    return { row, player, animation };
 }
 
 function getCurrentPlayer() {
@@ -179,17 +200,24 @@ function resetGame() {
 }
 
 function emptyBoard() {
+    // Get Y position of the bottom row
     const bottomY = grid.children[grid.children.length - 1].getBoundingClientRect().y;
 
+    // Empty every piece on the grid
     for (let row = 0; row < ROWS; row++) {
         for (let col = 0; col < COLUMNS; col++) {
+            // Get a location of the piece at the row and column
             const location = grid.children[row * 7 + col];
             const piece = location.firstElementChild;
+
+            // Continue the loop if there is no piece on the tile
             if (!piece) continue;
 
+            // Calculate the distance needed for the piece to fall off the board
             const pieceY = location.getBoundingClientRect().y;
             const distance = bottomY - pieceY + FALLING_OFFSET;
 
+            // Animate dropping the piece
             const animation = piece.animate(
                 {
                     transform: [
@@ -199,6 +227,8 @@ function emptyBoard() {
                 },
                 500 - (row * 50)
             );
+
+            // Remove the piece when the animation is done
             animation.onfinish = () => piece.remove();
         }
     }

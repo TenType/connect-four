@@ -6,6 +6,7 @@
     --player-yellow: linear-gradient(var(--solid-yellow), rgb(138, 135, 0));
 }
 
+/* Piece colors */
 .bg-red {
     background-color: var(--solid-red);
     background-image: var(--player-red);
@@ -16,6 +17,7 @@
     background-image: var(--player-yellow);
 }
 
+/* Menu colors for the current turn or game result */
 .border-0 {
     border-color: var(--board-color);
     border-image: linear-gradient(to right, var(--solid-red) 50%, var(--solid-yellow) 50%) 49%;
