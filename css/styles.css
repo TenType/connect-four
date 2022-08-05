@@ -1,11 +1,3 @@
-:root {
-    --board-color: #147bfa;
-    --solid-red: rgb(255, 22, 22);
-    --solid-yellow: rgb(230, 225, 0);
-    --player-red: linear-gradient(var(--solid-red), rgb(153, 13.2, 13.2));
-    --player-yellow: linear-gradient(var(--solid-yellow), rgb(138, 135, 0));
-}
-
 body {
     background-color: whitesmoke;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
@@ -79,16 +71,6 @@ body {
     }
 }
 
-.bg-red {
-    background-color: var(--solid-red);
-    background-image: var(--player-red);
-}
-
-.bg-yellow {
-    background-color: var(--solid-yellow);
-    background-image: var(--player-yellow);
-}
-
 #menu {
     width: 30%;
     height: 84%;
@@ -99,21 +81,6 @@ body {
     background-color: rgb(230, 230, 230);
     text-align: center;
     transition: border 1s, height 1s;
-}
-
-.border-0 {
-    border-color: var(--board-color);
-    border-image: linear-gradient(to right, var(--solid-red) 50%, var(--solid-yellow) 50%) 49%;
-}
-
-.border-1 {
-    border-color: var(--solid-red);
-    border-image: var(--player-red) 49%;
-}
-
-.border-2 {
-    border-color: var(--solid-yellow);
-    border-image: var(--player-yellow) 49%;
 }
 
 #menu[data-done='true'] {
