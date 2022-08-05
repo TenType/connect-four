@@ -69,6 +69,16 @@ body {
     border-radius: 50%;
 }
 
+.piece[data-win='true'] {
+    animation: blink 2s ease-in-out infinite;
+}
+
+@keyframes blink {
+    50% {
+        opacity: 50%;
+    }
+}
+
 .bg-red {
     background-color: var(--solid-red);
     background-image: var(--player-red);

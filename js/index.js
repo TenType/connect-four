@@ -46,11 +46,17 @@ function makeMove(col) {
         return;
     }
 
-    if (checkIfMoveWins(row, col, player)) {
+    let matchingPieces = checkIfMoveWins(row, col, player);
+    if (matchingPieces.length) {
         gameOver = true;
         animation.then(() => {
             menu.dataset.done = 'true';
             turn.innerHTML = `Player ${player} wins!`;
+
+            for (const [row, col] of matchingPieces) {
+                const piece = boardHTML.children[row * 7 + col].firstChild;
+                piece.dataset.win = true;
+            }
         });
         return;
     }
@@ -119,7 +125,7 @@ function checkIfDraw(row) {
 function checkIfMoveWins(row, col, piece) {
     // Horizontal, vertical, and diagonal checks
     for (const [run, rise] of [[1, 0], [0, 1], [1, -1], [1, 1]]) {
-        let length = 1;
+        let matchingPieces = [[row, col]];
 
         // Check positive and negative directions
         for (const direction of [1, -1]) {
@@ -138,11 +144,11 @@ function checkIfMoveWins(row, col, piece) {
                 )
                     break;
 
-                length++;
-                if (length == 4) return true;
+                matchingPieces.push([row_check, col_check]);
+                if (matchingPieces.length == 4) return matchingPieces;
             }
         }
     }
 
-    return false;
+    return [];
 }
