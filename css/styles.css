@@ -98,6 +98,7 @@ body {
     border-style: solid;
     background-color: rgb(230, 230, 230);
     text-align: center;
+    transition: border 1s, height 1s;
 }
 
 .border-0 {
@@ -118,7 +119,6 @@ body {
 #menu[data-done='true'] {
     height: calc(84% - 50px);
     border-top-width: 50px;
-    transition: border 1s, height 1s;
 }
 
 #menu h2 {
@@ -143,4 +143,24 @@ body {
     margin: 5px;
     border: 2px solid black;
     font-size: 1.1rem;
+}
+
+#reset {
+    font-size: 1.25rem;
+    padding: 4px 24px;
+    margin: 8px;
+    border: 2px solid var(--board-color);
+    border-radius: 8px;
+    transition-duration: 0.5s;
+    cursor: pointer;
+}
+
+#reset[data-primary='true'], #reset:not([data-primary='true']):hover {
+    background-color: var(--board-color);
+    color: white;
+}
+
+#reset:not([data-primary='true']), #reset[data-primary='true']:hover {
+    background-color: white;
+    color: var(--board-color);
 }

@@ -1,20 +1,33 @@
 const ROWS = 6;
 const COLUMNS = 7;
-const board = new Array(ROWS).fill(0).map(() => new Array(COLUMNS).fill(0));
 const pieceColors = ['bg-red', 'bg-yellow'];
-const moves = [];
 
 const boardHTML = document.getElementById('board');
 const menu = document.getElementById('menu');
 const turn = document.getElementById('turn');
 const counter = document.getElementById('turn-counter');
 const moveHistory = document.getElementById('history');
+const resetButton = document.getElementById('reset');
 
-let turnClock = true;
-let gameOver = false;
+let board;
+let turnClock;
+let gameOver;
+let moves;
 
 createBoard();
-updateMenu();
+newGame();
+
+function newGame() {
+    board = new Array(ROWS).fill(0).map(() => new Array(COLUMNS).fill(0));
+    turnClock = true;
+    gameOver = false;
+    moves = [];
+
+    menu.dataset.done = '';
+    resetButton.dataset.primary = '';
+    moveHistory.value = '';
+    updateMenu();
+}
 
 function createBoard() {
     for (let row = 0; row < ROWS; row++) {
@@ -39,7 +52,7 @@ function makeMove(col) {
     if (checkIfDraw(row)) {
         gameOver = true;
         animation.then(() => {
-            menu.dataset.done = 'true';
+            endGame();
             menu.classList = 'border-0';
             turn.innerHTML = 'Draw';
         });
@@ -50,7 +63,7 @@ function makeMove(col) {
     if (matchingPieces.length) {
         gameOver = true;
         animation.then(() => {
-            menu.dataset.done = 'true';
+            endGame();
             turn.innerHTML = `Player ${player} wins!`;
 
             for (const [row, col] of matchingPieces) {
@@ -118,6 +131,11 @@ function updateMenu() {
     counter.innerHTML = `Turn ${Math.ceil((moves.length + 1) / 2)}, Move ${moves.length + 1}`;
 }
 
+function endGame() {
+    menu.dataset.done = 'true';
+    resetButton.dataset.primary = 'true';
+}
+
 function checkIfDraw(row) {
     return row == 0 && !board[0].includes(0);
 }
@@ -151,4 +169,36 @@ function checkIfMoveWins(row, col, piece) {
     }
 
     return [];
+}
+
+function resetGame() {
+    emptyBoard();
+    newGame();
+}
+
+function emptyBoard() {
+    const children = boardHTML.children;
+    const bottomY = children[children.length - 1].getBoundingClientRect().y;
+
+    for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLUMNS; col++) {
+            const location = children[row * 7 + col];
+            const piece = location.firstElementChild;
+            if (!piece) continue;
+
+            const pieceY = location.getBoundingClientRect().y;
+            const distance = bottomY - pieceY + 60;
+
+            const animation = piece.animate(
+                {
+                    transform: [
+                        `translateY(${distance}px)`,
+                    ],
+                    easing: ['cubic-bezier(0.22, 0, 0.42, 0)'],
+                },
+                500 - (row * 50)
+            );
+            animation.onfinish = () => piece.remove();
+        }
+    }
 }
