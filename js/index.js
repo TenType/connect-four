@@ -1,8 +1,10 @@
 const ROWS = 6;
 const COLUMNS = 7;
-const pieceColors = ['bg-red', 'bg-yellow'];
+const PIECE_COLORS = ['bg-red', 'bg-yellow'];
+const FALLING_EASE = 'cubic-bezier(0.22, 0, 0.42, 0)';
+const FALLING_OFFSET = 60;
 
-const boardHTML = document.getElementById('board');
+const grid = document.getElementById('board');
 const menu = document.getElementById('menu');
 const turn = document.getElementById('turn');
 const counter = document.getElementById('turn-counter');
@@ -34,7 +36,7 @@ function createBoard() {
         for (let col = 0; col < COLUMNS; col++) {
             const tile = document.createElement('div');
             tile.classList.add('tile');
-            boardHTML.append(tile);
+            grid.append(tile);
 
             tile.onclick = () => makeMove(col);
         }
@@ -51,26 +53,26 @@ function makeMove(col) {
 
     if (checkIfDraw(row)) {
         gameOver = true;
-        animation.then(() => {
+        animation.onfinish = () => {
             endGame();
             menu.classList = 'border-0';
             turn.innerHTML = 'Draw';
-        });
+        };
         return;
     }
 
     let matchingPieces = checkIfMoveWins(row, col, player);
     if (matchingPieces.length) {
         gameOver = true;
-        animation.then(() => {
+        animation.onfinish = () => {
             endGame();
             turn.innerHTML = `Player ${player} wins!`;
 
             for (const [row, col] of matchingPieces) {
-                const piece = boardHTML.children[row * 7 + col].firstChild;
+                const piece = grid.children[row * 7 + col].firstChild;
                 piece.dataset.win = true;
             }
-        });
+        };
         return;
     }
 
@@ -87,31 +89,31 @@ function dropPiece(col) {
     const player = getCurrentPlayer();
     board[row][col] = player;
 
-    const pieceDiv = document.createElement('div');
-    pieceDiv.classList.add('piece');
-    pieceDiv.classList.add(pieceColors[player - 1]);
+    const piece = document.createElement('div');
+    piece.classList.add('piece');
+    piece.classList.add(PIECE_COLORS[player - 1]);
 
-    const location = boardHTML.children[row * 7 + col];
-    location.appendChild(pieceDiv);
+    const location = grid.children[row * 7 + col];
+    location.appendChild(piece);
 
-    const topY = boardHTML.children[col].getBoundingClientRect().y;
-    const targetY = pieceDiv.getBoundingClientRect().y;
-    const length = topY - targetY - 60;
+    const topY = grid.children[0].getBoundingClientRect().y;
+    const pieceY = piece.getBoundingClientRect().y;
+    const distance = topY - pieceY - FALLING_OFFSET;
 
-    const animation = pieceDiv.animate(
+    const animation = piece.animate(
         {
             transform: [
-                `translateY(${length}px)`,
+                `translateY(${distance}px)`,
                 'translateY(0px)',
-                `translateY(${length / 10}px)`,
+                `translateY(${distance / 10}px)`,
             ],
             offset: [0, 0.5, 0.7],
-            easing: ['cubic-bezier(0.22, 0, 0.42, 0)', 'ease', 'ease'],
+            easing: [FALLING_EASE, 'ease', 'ease'],
         },
         500
     );
 
-    return { row, player, animation: animation.finished };
+    return { row, player, animation};
 }
 
 function getCurrentPlayer() {
@@ -151,18 +153,18 @@ function checkIfMoveWins(row, col, piece) {
             if (run == 0 && direction == -1) continue;
 
             for (let step = 1; step < 4; step++) {
-                const row_check = row + rise * step * direction;
-                const col_check = col + run * step * direction;
+                const rowCheck = row + rise * step * direction;
+                const colCheck = col + run * step * direction;
 
                 // Out of bounds or not matching
                 if (
-                    row_check < 0 || row_check >= board.length ||
-                    col_check < 0 || col_check >= board[row].length ||
-                    board[row_check][col_check] != piece
+                    rowCheck < 0 || rowCheck >= board.length ||
+                    colCheck < 0 || colCheck >= board[row].length ||
+                    board[rowCheck][colCheck] != piece
                 )
                     break;
 
-                matchingPieces.push([row_check, col_check]);
+                matchingPieces.push([rowCheck, colCheck]);
                 if (matchingPieces.length == 4) return matchingPieces;
             }
         }
@@ -177,24 +179,23 @@ function resetGame() {
 }
 
 function emptyBoard() {
-    const children = boardHTML.children;
-    const bottomY = children[children.length - 1].getBoundingClientRect().y;
+    const bottomY = grid.children[grid.children.length - 1].getBoundingClientRect().y;
 
     for (let row = 0; row < ROWS; row++) {
         for (let col = 0; col < COLUMNS; col++) {
-            const location = children[row * 7 + col];
+            const location = grid.children[row * 7 + col];
             const piece = location.firstElementChild;
             if (!piece) continue;
 
             const pieceY = location.getBoundingClientRect().y;
-            const distance = bottomY - pieceY + 60;
+            const distance = bottomY - pieceY + FALLING_OFFSET;
 
             const animation = piece.animate(
                 {
                     transform: [
                         `translateY(${distance}px)`,
                     ],
-                    easing: ['cubic-bezier(0.22, 0, 0.42, 0)'],
+                    easing: [FALLING_EASE],
                 },
                 500 - (row * 50)
             );
