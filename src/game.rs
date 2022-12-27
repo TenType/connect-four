@@ -1,4 +1,11 @@
-use crate::{Error, NUM_PLAYERS, WIDTH};
+use crate::{Error, Player, HEIGHT, NUM_PLAYERS, WIDTH};
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Status {
+    Draw,
+    Ongoing,
+    Win(Player),
+}
 
 pub struct Game {
     boards: [u64; NUM_PLAYERS],
@@ -24,21 +31,26 @@ impl Game {
         Self::default()
     }
 
-    pub fn play(&mut self, col: usize) -> Result<(), Error> {
+    pub fn play(&mut self, col: usize) -> Result<Status, Error> {
         self.can_play(col)?;
 
         self.boards[self.moves % NUM_PLAYERS] |= 1 << self.heights[col];
         self.heights[col] += 1;
         self.moves += 1;
 
-        Ok(())
+        Ok(self.status())
     }
 
-    pub fn play_moves(&mut self, moves: &[usize]) -> Result<(), Error> {
-        for col in moves {
-            self.play(*col)?;
+    pub fn play_moves(&mut self, moves: &[usize]) -> Result<Status, Error> {
+        if let Some((last, elements)) = moves.split_last() {
+            for col in elements {
+                self.play(*col)?;
+            }
+            let status = self.play(*last)?;
+            Ok(status)
+        } else {
+            panic!("Cannot play moves from an empty slice");
         }
-        Ok(())
     }
 
     pub fn can_play(&self, col: usize) -> Result<(), Error> {
@@ -58,6 +70,55 @@ impl Game {
     fn is_unfilled(&self, col: usize) -> bool {
         let new_board = self.boards[self.moves % NUM_PLAYERS] | (1 << self.heights[col]);
         new_board & Self::TOP_MASK == 0
+    }
+
+    pub fn status(&self) -> Status {
+        if self.is_draw() {
+            Status::Draw
+        } else if self.has_won() {
+            let player = if (self.moves + 1) % NUM_PLAYERS == 0 {
+                Player::P1
+            } else {
+                Player::P2
+            };
+            Status::Win(player)
+        } else {
+            Status::Ongoing
+        }
+    }
+
+    pub fn is_game_over(&self) -> bool {
+        self.is_draw() || self.has_won()
+    }
+
+    fn is_draw(&self) -> bool {
+        self.moves >= WIDTH * HEIGHT
+    }
+
+    fn has_won(&self) -> bool {
+        let board = self.boards[(self.moves + 1) % NUM_PLAYERS];
+
+        // Descending diagonal \
+        let x = board & (board >> HEIGHT);
+        if x & (x >> (2 * HEIGHT)) != 0 {
+            return true;
+        }
+
+        // Horizontal -
+        let x = board & (board >> (HEIGHT + 1));
+        if x & (x >> (2 * (HEIGHT + 1))) != 0 {
+            return true;
+        }
+
+        // Ascending diagonal /
+        let x = board & (board >> (HEIGHT + 2));
+        if x & (x >> (2 * (HEIGHT + 2))) != 0 {
+            return true;
+        }
+
+        // Vertical |
+        let x = board & (board >> 1);
+        x & (x >> 2) != 0
     }
 
     pub fn moves(&self) -> usize {
@@ -113,14 +174,94 @@ mod tests {
     #[test]
     fn out_of_bounds() {
         let mut game = Game::new();
-        let result = game.play(7);
-        assert_eq!(result, Err(Error::OutOfBounds));
+        let err = game.play(7).unwrap_err();
+        assert_eq!(err, Error::OutOfBounds);
     }
 
     #[test]
     fn full_column() {
         let mut game = Game::new();
-        let result = game.play_moves(&[0, 0, 0, 0, 0, 0, 0]);
-        assert_eq!(result, Err(Error::ColumnFull));
+        let err = game.play_moves(&[0, 0, 0, 0, 0, 0, 0]).unwrap_err();
+        assert_eq!(err, Error::ColumnFull);
+    }
+
+    #[test]
+    fn no_win_overflow() -> Result<(), Error> {
+        let mut game = Game::new();
+        assert!(!game.is_game_over());
+        assert_eq!(game.status(), Status::Ongoing);
+
+        let status = game.play_moves(&[0, 1, 0, 1, 0, 1, 1, 2, 1, 2, 1])?;
+        assert!(!game.is_game_over());
+        assert_eq!(status, Status::Ongoing);
+        Ok(())
+    }
+
+    #[test]
+    fn horizontal_win() -> Result<(), Error> {
+        let mut game = Game::new();
+        let status = game.play_moves(&[0, 0, 1, 1, 2, 2])?;
+        assert!(!game.is_game_over());
+        assert_eq!(status, Status::Ongoing);
+
+        let status = game.play(3)?;
+        assert!(game.is_game_over());
+        assert_eq!(status, Status::Win(Player::P1));
+        Ok(())
+    }
+
+    #[test]
+    fn vertical_win() -> Result<(), Error> {
+        let mut game = Game::new();
+        let status = game.play_moves(&[0, 1, 0, 1, 0, 1])?;
+        assert!(!game.is_game_over());
+        assert_eq!(status, Status::Ongoing);
+
+        let status = game.play(0)?;
+        assert!(game.is_game_over());
+        assert_eq!(status, Status::Win(Player::P1));
+        Ok(())
+    }
+
+    #[test]
+    fn asc_diagonal_win() -> Result<(), Error> {
+        let mut game = Game::new();
+        let status = game.play_moves(&[3, 0, 1, 1, 2, 3, 2, 2, 3])?;
+        assert!(!game.is_game_over());
+        assert_eq!(status, Status::Ongoing);
+
+        let status = game.play(3)?;
+        assert!(game.is_game_over());
+        assert_eq!(status, Status::Win(Player::P2));
+        Ok(())
+    }
+
+    #[test]
+    fn desc_diagonal_win() -> Result<(), Error> {
+        let mut game = Game::new();
+        let status = game.play_moves(&[3, 6, 5, 5, 4, 3, 4, 4, 3])?;
+        assert!(!game.is_game_over());
+        assert_eq!(status, Status::Ongoing);
+
+        let status = game.play(3)?;
+        assert!(game.is_game_over());
+        assert_eq!(status, Status::Win(Player::P2));
+        Ok(())
+    }
+
+    #[test]
+    fn draw() -> Result<(), Error> {
+        let mut game = Game::new();
+        let status = game.play_moves(&[
+            0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 4, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4,
+            4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6,
+        ])?;
+        assert!(!game.is_game_over());
+        assert_eq!(status, Status::Ongoing);
+
+        let status = game.play(6)?;
+        assert!(game.is_game_over());
+        assert_eq!(status, Status::Draw);
+        Ok(())
     }
 }
