@@ -1,14 +1,6 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+mod game;
+pub use game::*;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub const HEIGHT: usize = 6;
+pub const WIDTH: usize = 7;
+pub const NUM_PLAYERS: usize = 2;
