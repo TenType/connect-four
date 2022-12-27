@@ -1,4 +1,5 @@
 use crate::{Error, Player, HEIGHT, NUM_PLAYERS, WIDTH};
+use std::fmt;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Status {
@@ -20,6 +21,29 @@ impl Default for Game {
             heights: core::array::from_fn(|i| (WIDTH * i) as u64),
             moves: 0,
         }
+    }
+}
+
+impl fmt::Display for Game {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for row in (0..HEIGHT).rev() {
+            for col in 0..WIDTH {
+                let index = col * WIDTH + row;
+                let piece = if self.get_bit(0, index) != 0 {
+                    1
+                } else if self.get_bit(1, index) != 0 {
+                    2
+                } else {
+                    0
+                };
+
+                write!(f, "{} ", piece)?;
+            }
+            if row != 0 {
+                writeln!(f)?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -123,6 +147,10 @@ impl Game {
 
     pub fn moves(&self) -> usize {
         self.moves
+    }
+
+    fn get_bit(&self, player: usize, index: usize) -> u64 {
+        self.boards[player] & (1 << index)
     }
 }
 
