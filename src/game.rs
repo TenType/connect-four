@@ -149,6 +149,14 @@ impl Game {
         self.moves
     }
 
+    pub fn turn(&self) -> Player {
+        if self.moves % NUM_PLAYERS == 0 {
+            Player::P1
+        } else {
+            Player::P2
+        }
+    }
+
     fn get_bit(&self, player: usize, index: usize) -> u64 {
         self.boards[player] & (1 << index)
     }
