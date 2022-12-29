@@ -4,6 +4,9 @@ pub use error::*;
 mod game;
 pub use game::*;
 
+mod solver;
+pub use solver::*;
+
 pub const HEIGHT: usize = 6;
 pub const WIDTH: usize = 7;
 pub const NUM_PLAYERS: usize = 2;

@@ -8,6 +8,7 @@ pub enum Status {
     Win(Player),
 }
 
+#[derive(Clone)]
 pub struct Game {
     boards: [u64; NUM_PLAYERS],
     heights: [u64; WIDTH],
@@ -58,11 +59,15 @@ impl Game {
     pub fn play(&mut self, col: usize) -> Result<Status, Error> {
         self.can_play(col)?;
 
+        self.unchecked_play(col);
+
+        Ok(self.status())
+    }
+
+    pub(crate) fn unchecked_play(&mut self, col: usize) {
         self.boards[self.moves % NUM_PLAYERS] |= 1 << self.heights[col];
         self.heights[col] += 1;
         self.moves += 1;
-
-        Ok(self.status())
     }
 
     pub fn play_moves(&mut self, moves: &[usize]) -> Result<Status, Error> {
@@ -91,7 +96,7 @@ impl Game {
         col < WIDTH
     }
 
-    fn is_unfilled(&self, col: usize) -> bool {
+    pub(crate) fn is_unfilled(&self, col: usize) -> bool {
         let new_board = self.boards[self.moves % NUM_PLAYERS] | (1 << self.heights[col]);
         new_board & Self::TOP_MASK == 0
     }
@@ -115,13 +120,19 @@ impl Game {
         self.is_draw() || self.has_won()
     }
 
-    fn is_draw(&self) -> bool {
+    pub(crate) fn is_draw(&self) -> bool {
         self.moves >= WIDTH * HEIGHT
     }
 
-    fn has_won(&self) -> bool {
-        let board = self.boards[(self.moves + 1) % NUM_PLAYERS];
+    pub fn has_won(&self) -> bool {
+        self.check_win(self.boards[(self.moves + 1) % NUM_PLAYERS])
+    }
 
+    pub fn is_winning_move(&self, col: usize) -> bool {
+        self.check_win(self.boards[self.moves % NUM_PLAYERS] | (1 << self.heights[col]))
+    }
+
+    fn check_win(&self, board: u64) -> bool {
         // Descending diagonal \
         let x = board & (board >> HEIGHT);
         if x & (x >> (2 * HEIGHT)) != 0 {
