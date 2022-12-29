@@ -1,6 +1,8 @@
 use crate::{Error, Player, HEIGHT, NUM_PLAYERS, WIDTH};
 use std::fmt;
 
+pub type Bitboard = u64;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Status {
     Draw,
@@ -10,8 +12,8 @@ pub enum Status {
 
 #[derive(Clone)]
 pub struct Game {
-    boards: [u64; NUM_PLAYERS],
-    heights: [u64; WIDTH],
+    boards: [Bitboard; NUM_PLAYERS],
+    heights: [u8; WIDTH],
     moves: usize,
 }
 
@@ -19,7 +21,7 @@ impl Default for Game {
     fn default() -> Self {
         Self {
             boards: [0, 0],
-            heights: core::array::from_fn(|i| (WIDTH * i) as u64),
+            heights: core::array::from_fn(|i| (WIDTH * i) as u8),
             moves: 0,
         }
     }
@@ -50,7 +52,7 @@ impl fmt::Display for Game {
 
 impl Game {
     #[allow(clippy::unusual_byte_groupings)]
-    const TOP_MASK: u64 = 0b1000000_1000000_1000000_1000000_1000000_1000000_1000000;
+    const TOP_MASK: Bitboard = 0b1000000_1000000_1000000_1000000_1000000_1000000_1000000;
 
     pub fn new() -> Self {
         Self::default()
@@ -132,7 +134,7 @@ impl Game {
         self.check_win(self.boards[self.moves % NUM_PLAYERS] | (1 << self.heights[col]))
     }
 
-    fn check_win(&self, board: u64) -> bool {
+    fn check_win(&self, board: Bitboard) -> bool {
         // Descending diagonal \
         let x = board & (board >> HEIGHT);
         if x & (x >> (2 * HEIGHT)) != 0 {
@@ -168,7 +170,7 @@ impl Game {
         }
     }
 
-    fn get_bit(&self, player: usize, index: usize) -> u64 {
+    fn get_bit(&self, player: usize, index: usize) -> Bitboard {
         self.boards[player] & (1 << index)
     }
 }
