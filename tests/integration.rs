@@ -1,4 +1,4 @@
-use connect_four_engine::{solve, Game, Score};
+use connect_four_engine::{Game, Score, Solver};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 
@@ -20,7 +20,7 @@ fn test_file(file_name: &str) {
             let mut game = Game::new();
             game.play_moves(&moves).expect("Invalid moves");
 
-            let actual = solve(game);
+            let actual = Solver::solve(game);
             let expected: Score = expected_str.parse().unwrap();
 
             assert_eq!(
