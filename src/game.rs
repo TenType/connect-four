@@ -84,6 +84,13 @@ impl Game {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn unchecked_play_moves(&mut self, moves: &[usize]) {
+        for col in moves {
+            self.unchecked_play(*col);
+        }
+    }
+
     pub fn can_play(&self, col: usize) -> Result<(), Error> {
         if !self.is_inside(col) {
             Err(Error::OutOfBounds)
