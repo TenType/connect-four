@@ -1,10 +1,15 @@
-use crate::{Game, HEIGHT, WIDTH};
+use std::collections::HashMap;
+
+use crate::{Bitboard, Game, HEIGHT, WIDTH};
 
 pub type Score = i8;
+pub const MIN_SCORE: Score = -((WIDTH * HEIGHT) as Score) / 2 + 3;
+pub const MAX_SCORE: Score = ((WIDTH * HEIGHT) as Score + 1) / 2 - 3;
 
 pub struct Solver {
     move_order: [usize; WIDTH],
     node_count: usize,
+    trans_table: HashMap<Bitboard, Score>,
 }
 
 impl Solver {
@@ -14,6 +19,7 @@ impl Solver {
                 (WIDTH / 2) + (i % 2) * (i / 2 + 1) - (1 - i % 2) * (i / 2)
             }),
             node_count: 0,
+            trans_table: HashMap::new(),
         };
 
         solver.negamax(
@@ -36,7 +42,10 @@ impl Solver {
             }
         }
 
-        let max = ((WIDTH * HEIGHT - 1 - game.moves()) / 2) as Score;
+        let mut max = ((WIDTH * HEIGHT - 1 - game.moves()) / 2) as Score;
+        if let Some(score) = self.trans_table.get(&game.key()) {
+            max = *score + MIN_SCORE - 1;
+        }
 
         if beta > max {
             beta = max;
@@ -59,6 +68,7 @@ impl Solver {
             }
         }
 
+        self.trans_table.insert(game.key(), alpha - MIN_SCORE + 1);
         alpha
     }
 }
@@ -124,7 +134,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "too slow"]
     fn middle_medium() {
         test_file("middle_medium");
     }

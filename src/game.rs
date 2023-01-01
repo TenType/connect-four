@@ -180,6 +180,10 @@ impl Game {
     fn get_bit(&self, player: usize, index: usize) -> Bitboard {
         self.boards[player] & (1 << index)
     }
+
+    pub(crate) fn key(&self) -> Bitboard {
+        (self.boards[0] | self.boards[1]) + self.boards[self.moves % NUM_PLAYERS]
+    }
 }
 
 #[cfg(test)]

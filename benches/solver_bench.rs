@@ -21,7 +21,7 @@ const MIDDLE_EASY: BenchData = BenchData {
     ],
 };
 
-const _MIDDLE_MEDIUM: BenchData = BenchData {
+const MIDDLE_MEDIUM: BenchData = BenchData {
     name: "middle_medium",
     moves: &[1, 6, 3, 4, 4, 1, 1, 1, 3, 0, 2, 0, 5, 5, 0],
 };
@@ -49,7 +49,7 @@ const _FULL_SEARCH: BenchData = BenchData {
 fn bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("solve");
 
-    for data in [END_EASY, MIDDLE_EASY] {
+    for data in [END_EASY, MIDDLE_EASY, MIDDLE_MEDIUM] {
         let mut game = Game::new();
         if !data.moves.is_empty() {
             game.play_moves(data.moves).expect("Invalid moves");
