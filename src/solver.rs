@@ -22,11 +22,26 @@ impl Solver {
             trans_table: HashMap::new(),
         };
 
-        solver.negamax(
-            game,
-            -((WIDTH * HEIGHT / 2) as Score),
-            (WIDTH * HEIGHT / 2) as Score,
-        )
+        let mut min = -((WIDTH * HEIGHT - game.moves()) as Score) / 2;
+        let mut max = (WIDTH * HEIGHT - game.moves()) as Score / 2;
+
+        while min < max {
+            let mut midpoint = min + (max - min) / 2;
+            if midpoint <= 0 && min / 2 < midpoint {
+                midpoint = min / 2;
+            } else if midpoint >= 0 && max / 2 > midpoint {
+                midpoint = max / 2;
+            }
+
+            let score = solver.negamax(game.clone(), midpoint, midpoint + 1);
+
+            if score <= midpoint {
+                max = score;
+            } else {
+                min = score;
+            }
+        }
+        min
     }
 
     fn negamax(&mut self, game: Game, mut alpha: Score, mut beta: Score) -> Score {
@@ -111,7 +126,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "too slow"]
     fn begin_easy() {
         test_file("begin_easy");
     }
