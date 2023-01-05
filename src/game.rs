@@ -1,7 +1,8 @@
-use crate::{Error, Player, HEIGHT, NUM_PLAYERS, WIDTH};
+use crate::{
+    bitboard::{self, Bitboard},
+    Error, Player, HEIGHT, NUM_PLAYERS, WIDTH,
+};
 use std::fmt;
-
-pub type Bitboard = u64;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Status {
@@ -10,37 +11,31 @@ pub enum Status {
     Win(Player),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Game {
-    boards: [Bitboard; NUM_PLAYERS],
-    heights: [u8; WIDTH],
+    player_board: Bitboard,
+    pieces_board: Bitboard,
     moves: usize,
-}
-
-impl Default for Game {
-    fn default() -> Self {
-        Self {
-            boards: [0, 0],
-            heights: core::array::from_fn(|i| (WIDTH * i) as u8),
-            moves: 0,
-        }
-    }
 }
 
 impl fmt::Display for Game {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let turn = self.turn();
+        let current_player = self.player_board;
+        let opponent = self.player_board ^ self.pieces_board;
+
         for row in (0..HEIGHT).rev() {
             for col in 0..WIDTH {
                 let index = col * WIDTH + row;
-                let piece = if self.get_bit(0, index) != 0 {
-                    1
-                } else if self.get_bit(1, index) != 0 {
-                    2
+                if current_player & (1 << index) != 0 {
+                    write!(f, "{turn}")?;
+                } else if opponent & (1 << index) != 0 {
+                    write!(f, "{}", !turn)?;
                 } else {
-                    0
+                    write!(f, ".")?;
                 };
 
-                write!(f, "{} ", piece)?;
+                write!(f, " ")?;
             }
             if row != 0 {
                 writeln!(f)?;
@@ -51,9 +46,6 @@ impl fmt::Display for Game {
 }
 
 impl Game {
-    #[allow(clippy::unusual_byte_groupings)]
-    const TOP_MASK: Bitboard = 0b1000000_1000000_1000000_1000000_1000000_1000000_1000000;
-
     pub fn new() -> Self {
         Self::default()
     }
@@ -67,21 +59,19 @@ impl Game {
     }
 
     pub(crate) fn unchecked_play(&mut self, col: usize) {
-        self.boards[self.moves % NUM_PLAYERS] |= 1 << self.heights[col];
-        self.heights[col] += 1;
+        self.player_board ^= self.pieces_board;
+        self.pieces_board |= self.pieces_board + bitboard::bottom_piece_mask(col);
         self.moves += 1;
     }
 
     pub fn play_moves(&mut self, moves: &[usize]) -> Result<Status, Error> {
-        if let Some((last, elements)) = moves.split_last() {
-            for col in elements {
-                self.play(*col)?;
-            }
-            let status = self.play(*last)?;
-            Ok(status)
-        } else {
-            panic!("Cannot play moves from an empty slice");
+        let (last, elements) = moves.split_last().expect("slice should not be empty");
+
+        for col in elements {
+            self.play(*col)?;
         }
+        let status = self.play(*last)?;
+        Ok(status)
     }
 
     #[cfg(test)]
@@ -106,19 +96,13 @@ impl Game {
     }
 
     pub(crate) fn is_unfilled(&self, col: usize) -> bool {
-        let new_board = self.boards[self.moves % NUM_PLAYERS] | (1 << self.heights[col]);
-        new_board & Self::TOP_MASK == 0
+        (self.pieces_board & bitboard::top_piece_mask(col)) == 0
     }
 
     pub fn status(&self) -> Status {
         if self.is_draw() {
             Status::Draw
-        } else if self.has_won() {
-            let player = if (self.moves + 1) % NUM_PLAYERS == 0 {
-                Player::P1
-            } else {
-                Player::P2
-            };
+        } else if let Some(player) = self.winner() {
             Status::Win(player)
         } else {
             Status::Ongoing
@@ -133,12 +117,24 @@ impl Game {
         self.moves >= WIDTH * HEIGHT
     }
 
+    pub fn winner(&self) -> Option<Player> {
+        if self.check_win(self.player_board) {
+            Some(self.turn())
+        } else if self.check_win(self.player_board ^ self.pieces_board) {
+            Some(!self.turn())
+        } else {
+            None
+        }
+    }
+
     pub fn has_won(&self) -> bool {
-        self.check_win(self.boards[(self.moves + 1) % NUM_PLAYERS])
+        self.winner().is_some()
     }
 
     pub fn is_winning_move(&self, col: usize) -> bool {
-        self.check_win(self.boards[self.moves % NUM_PLAYERS] | (1 << self.heights[col]))
+        let board = self.player_board
+            | ((self.pieces_board + bitboard::bottom_piece_mask(col)) & bitboard::column_mask(col));
+        self.check_win(board)
     }
 
     fn check_win(&self, board: Bitboard) -> bool {
@@ -177,12 +173,8 @@ impl Game {
         }
     }
 
-    fn get_bit(&self, player: usize, index: usize) -> Bitboard {
-        self.boards[player] & (1 << index)
-    }
-
     pub(crate) fn key(&self) -> Bitboard {
-        (self.boards[0] | self.boards[1]) + self.boards[self.moves % NUM_PLAYERS]
+        self.player_board + self.pieces_board
     }
 }
 
@@ -194,8 +186,8 @@ mod tests {
     #[test]
     fn new_game() {
         let game = Game::new();
-        assert_eq!(game.boards, [0, 0]);
-        assert_eq!(game.heights, [0, 7, 14, 21, 28, 35, 42]);
+        assert_eq!(game.player_board, 0);
+        assert_eq!(game.pieces_board, 0);
         assert_eq!(game.moves, 0);
     }
 
@@ -204,13 +196,13 @@ mod tests {
         let mut game = Game::new();
         game.play(3)?;
         assert_eq!(
-            game.boards,
-            [
-                0b_0000000_0000000_0000000_0000001_0000000_0000000_0000000,
-                0
-            ]
+            game.player_board,
+            0b_0000000_0000000_0000000_0000000_0000000_0000000_0000000
         );
-        assert_eq!(game.heights, [0, 7, 14, 22, 28, 35, 42]);
+        assert_eq!(
+            game.pieces_board,
+            0b_0000000_0000000_0000000_0000001_0000000_0000000_0000000
+        );
         assert_eq!(game.moves, 1);
         Ok(())
     }
@@ -220,13 +212,13 @@ mod tests {
         let mut game = Game::new();
         game.play_moves(&[3, 3, 3, 3])?;
         assert_eq!(
-            game.boards,
-            [
-                0b_0000000_0000000_0000000_0000101_0000000_0000000_0000000,
-                0b_0000000_0000000_0000000_0001010_0000000_0000000_0000000,
-            ]
+            game.player_board,
+            0b_0000000_0000000_0000000_0000101_0000000_0000000_0000000
         );
-        assert_eq!(game.heights, [0, 7, 14, 25, 28, 35, 42]);
+        assert_eq!(
+            game.pieces_board,
+            0b_0000000_0000000_0000000_0001111_0000000_0000000_0000000
+        );
         assert_eq!(game.moves, 4);
         Ok(())
     }

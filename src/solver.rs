@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Bitboard, Game, HEIGHT, WIDTH};
+use crate::{bitboard::Bitboard, Game, HEIGHT, WIDTH};
 
 pub type Score = i8;
 pub const MIN_SCORE: Score = -((WIDTH * HEIGHT) as Score) / 2 + 3;
