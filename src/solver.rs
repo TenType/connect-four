@@ -1,18 +1,50 @@
+//! Solve and analyze Connect Four games.
+//!
+//! # Score
+//! Every game position has a score that determines the outcome of a game, assuming that both players play perfectly and optimally.
+//! * A positive score signifies that the current player can win.
+//!   * A position has the score of 1 if the player can win with their last piece, 2 if the player can win with their second to last piece, etc.
+//! * A score of 0 signifies that the game will end in a draw.
+//! * A negative score signifies that the current player will lose.
+//!   * A position has the score of -1 if the player loses with their last piece, -2 if the player loses with their second to last piece, etc.
+
 use std::collections::HashMap;
 
 use crate::{bitboard::Bitboard, Game, HEIGHT, WIDTH};
 
+/// The size of the score of a game position.
 pub type Score = i8;
+
+/// The minimum possible score of a game position.
 pub const MIN_SCORE: Score = -((WIDTH * HEIGHT) as Score) / 2 + 3;
+
+/// The maximum possible score of a game position.
 pub const MAX_SCORE: Score = ((WIDTH * HEIGHT) as Score + 1) / 2 - 3;
 
+/// Represents the solver for a Connect Four game.
 pub struct Solver {
+    /// The column exploration order, starting from the centermost columns.
     move_order: [usize; WIDTH],
+    /// The number of nodes visited.
     node_count: usize,
+    /// A transposition table used to cache the scores of previously-computed positions.
     trans_table: HashMap<Bitboard, Score>,
 }
 
 impl Solver {
+    /// Solve a game, returning its score.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::{Game, Solver};
+    ///
+    /// let mut game = Game::new();
+    /// game.play_moves(&[2, 1, 0, 5, 3, 5, 1, 4])?;
+    ///
+    /// let score = Solver::solve(game);
+    /// assert_eq!(score, 11);
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
     pub fn solve(game: Game) -> Score {
         let mut solver = Solver {
             move_order: core::array::from_fn(|i| {
@@ -44,6 +76,7 @@ impl Solver {
         min
     }
 
+    /// Recursively solves a game using the negamax search algorithm, returning its score.
     fn negamax(&mut self, game: Game, mut alpha: Score, mut beta: Score) -> Score {
         self.node_count += 1;
 

@@ -1,18 +1,26 @@
+//! A library for playing, solving, and analyzing the game of [Connect Four](https://en.wikipedia.org/wiki/Connect_Four).
+
 pub mod bitboard;
 
 mod error;
-pub use error::*;
+pub use error::Error;
 
-mod game;
-pub use game::*;
+pub mod game;
+pub use game::{Game, Status};
 
-mod solver;
-pub use solver::*;
+pub mod solver;
+pub use solver::Solver;
 
+/// The number of rows in a standard board.
 pub const HEIGHT: usize = 6;
+
+/// The number of columns in a standard board.
 pub const WIDTH: usize = 7;
+
+/// The number of players in a game.
 pub const NUM_PLAYERS: usize = 2;
 
+/// Represents a single player.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Player {
     P1,

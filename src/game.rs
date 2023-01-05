@@ -1,20 +1,30 @@
+//! Functionality for creating and playing the game of Connect Four.
+
 use crate::{
     bitboard::{self, Bitboard},
     Error, Player, HEIGHT, NUM_PLAYERS, WIDTH,
 };
 use std::fmt;
 
+/// Represents the state of a game.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Status {
+    /// The game has ended in a draw.
     Draw,
+    /// The game is still ongoing.
     Ongoing,
+    /// The game has ended with a winner represented by [`Player`].
     Win(Player),
 }
 
+/// Represents a Connect Four game.
 #[derive(Clone, Default)]
 pub struct Game {
+    /// A bitboard representing the pieces belonging to the current player.
     player_board: Bitboard,
+    /// A bitboard representing all the pieces played in the game.
     pieces_board: Bitboard,
+    /// The number of moves made in the game.
     moves: usize,
 }
 
@@ -46,10 +56,36 @@ impl fmt::Display for Game {
 }
 
 impl Game {
+    /// Creates a new game with an empty board.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::Game;
+    /// let game = Game::new();
+    /// ```
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Plays the current player's piece in the given 0-indexed column, returning the new status of the game.
+    ///
+    /// # Errors
+    /// Returns an error if the move cannot be played:
+    /// * [`Error::OutOfBounds`] if the column is out of bounds
+    /// * [`Error::ColumnFull`] if the column is full
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::Game;
+    ///
+    /// let mut game = Game::new();
+    ///
+    /// let result = game.play(3);
+    /// assert!(result.is_ok());
+    ///
+    /// let result = game.play(7); // out of bounds
+    /// assert!(result.is_err());
+    /// ```
     pub fn play(&mut self, col: usize) -> Result<Status, Error> {
         self.can_play(col)?;
 
@@ -58,12 +94,51 @@ impl Game {
         Ok(self.status())
     }
 
-    pub(crate) fn unchecked_play(&mut self, col: usize) {
+    /// Plays the current player's piece in the given 0-indexed column, without checking if the move can be played.
+    ///
+    /// # Warning
+    /// Playing into a column that is out of bounds or full may result in unexpected behavior.
+    ///
+    /// # Panics
+    /// Panics if `column` overflows a bitboard in debug mode.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::Game;
+    ///
+    /// let mut game = Game::new();
+    /// game.unchecked_play(3);
+    ///
+    /// // game.unchecked_play(7);
+    /// // ^^ out of bounds: unexpected behavior!
+    /// ```
+    pub fn unchecked_play(&mut self, col: usize) {
         self.player_board ^= self.pieces_board;
         self.pieces_board |= self.pieces_board + bitboard::bottom_piece_mask(col);
         self.moves += 1;
     }
 
+    /// Plays a sequence of moves from a slice of 0-indexed columns, returning the new status of the game.
+    ///
+    /// # Errors
+    /// Returns an error at the first move that cannot be played:
+    /// * [`Error::OutOfBounds`] if the column is out of bounds
+    /// * [`Error::ColumnFull`] if the column is full
+    ///
+    /// # Panics
+    /// Panics if `moves` is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::Game;
+    ///
+    /// let mut game = Game::new();
+    /// let result = game.play_moves(&[3, 2, 3]);
+    /// assert!(result.is_ok());
+    ///
+    /// let result = game.play_moves(&[3, 3, 3, 3, 3]); // overflowing column
+    /// assert!(result.is_err());
+    /// ```
     pub fn play_moves(&mut self, moves: &[usize]) -> Result<Status, Error> {
         let (last, elements) = moves.split_last().expect("slice should not be empty");
 
@@ -74,13 +149,51 @@ impl Game {
         Ok(status)
     }
 
-    #[cfg(test)]
-    pub(crate) fn unchecked_play_moves(&mut self, moves: &[usize]) {
+    /// Plays a sequence of moves from a slice of 0-indexed columns, without checking if moves can be played.
+    ///
+    /// # Warning
+    /// A slice that plays into a column that is out of bounds or full may result in unexpected behavior.
+    ///
+    /// # Panics
+    /// Panics if any item in `moves` overflows a bitboard in debug mode.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::Game;
+    ///
+    /// let mut game = Game::new();
+    /// game.unchecked_play_moves(&[3, 2, 3]);
+    ///
+    /// // game.unchecked_play_moves(&[3, 3, 3, 3, 3]);
+    /// // ^^ overflowing column: unexpected behavior!
+    /// ```
+    pub fn unchecked_play_moves(&mut self, moves: &[usize]) {
         for col in moves {
             self.unchecked_play(*col);
         }
     }
 
+    /// Returns `Ok(())` if the given 0-indexed column can be played in the game board.
+    ///
+    /// # Errors
+    /// Returns an error if the move cannot be played:
+    /// * [`Error::OutOfBounds`] if the column is out of bounds
+    /// * [`Error::ColumnFull`] if the column is full
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::Game;
+    ///
+    /// let mut game = Game::new();
+    /// assert!(game.can_play(3).is_ok());
+    ///
+    /// game.play(3)?;
+    /// assert!(game.can_play(3).is_ok());
+    ///
+    /// game.play_moves(&[3, 3, 3, 3, 3])?;
+    /// assert!(game.can_play(3).is_err()); // column is full
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
     pub fn can_play(&self, col: usize) -> Result<(), Error> {
         if !self.is_inside(col) {
             Err(Error::OutOfBounds)
@@ -91,14 +204,46 @@ impl Game {
         }
     }
 
+    /// Checks if the given 0-indexed column is inside the game board.
     fn is_inside(&self, col: usize) -> bool {
+        // No need to check for 0 < col because col is unsigned
         col < WIDTH
     }
 
+    /// Checks if the given 0-indexed column is not full, assuming that `column` is inside the game board.
     pub(crate) fn is_unfilled(&self, col: usize) -> bool {
         (self.pieces_board & bitboard::top_piece_mask(col)) == 0
     }
 
+    /// Returns a [`Status`] representing the current state of the game.
+    /// * [`Ongoing`](Status::Ongoing) if the game is still ongoing
+    /// * [`Draw`](Status::Draw) if the game ended with a draw
+    /// * [`Win(player)`](Status::Win) if the game ended with a winner, represented by a [`Player`]
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::{Game, Player, Status};
+    ///
+    /// let mut game = Game::new();
+    /// assert_eq!(game.status(), Status::Ongoing);
+    ///
+    /// game.play(3)?;
+    /// assert_eq!(game.status(), Status::Ongoing);
+    ///
+    /// game.play_moves(&[2, 3, 2, 3, 2, 3])?;
+    /// assert_eq!(game.status(), Status::Win(Player::P1));
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
+    ///
+    /// Note that [`self.play()`] calls this method and also returns the status:
+    /// ```
+    /// use connect_four_engine::{Game, Status};
+    ///
+    /// let mut game = Game::new();
+    /// let status = game.play(3)?;
+    /// assert_eq!(status, Status::Ongoing);
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
     pub fn status(&self) -> Status {
         if self.is_draw() {
             Status::Draw
@@ -109,14 +254,47 @@ impl Game {
         }
     }
 
+    /// Checks if the game is over.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::Game;
+    ///
+    /// let mut game = Game::new();
+    /// assert!(!game.is_game_over());
+    ///
+    /// game.play(3)?;
+    /// assert!(!game.is_game_over());
+    ///
+    /// game.play_moves(&[2, 3, 2, 3, 2, 3])?;
+    /// assert!(game.is_game_over());
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
     pub fn is_game_over(&self) -> bool {
         self.is_draw() || self.has_won()
     }
 
+    /// Checks if the game is a draw and no more moves can be played.
     pub(crate) fn is_draw(&self) -> bool {
         self.moves >= WIDTH * HEIGHT
     }
 
+    /// Returns the winner of the game or [`None`] if the game is a draw or still ongoing.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::Game;
+    ///
+    /// let mut game = Game::new();
+    /// assert!(game.winner().is_none());
+    ///
+    /// game.play(3)?;
+    /// assert!(game.winner().is_none());
+    ///
+    /// game.play_moves(&[2, 3, 2, 3, 2, 3])?;
+    /// assert!(game.winner().is_some());
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
     pub fn winner(&self) -> Option<Player> {
         if self.check_win(self.player_board) {
             Some(self.turn())
@@ -127,16 +305,19 @@ impl Game {
         }
     }
 
-    pub fn has_won(&self) -> bool {
+    /// Checks if the game has ended with a winner.
+    fn has_won(&self) -> bool {
         self.winner().is_some()
     }
 
-    pub fn is_winning_move(&self, col: usize) -> bool {
+    /// Checks if the current player wins by playing in a given 0-indexed column.
+    pub(crate) fn is_winning_move(&self, col: usize) -> bool {
         let board = self.player_board
             | ((self.pieces_board + bitboard::bottom_piece_mask(col)) & bitboard::column_mask(col));
         self.check_win(board)
     }
 
+    /// Checks if a given bitboard has a line of four `1`s.
     fn check_win(&self, board: Bitboard) -> bool {
         // Descending diagonal \
         let x = board & (board >> HEIGHT);
@@ -161,10 +342,43 @@ impl Game {
         x & (x >> 2) != 0
     }
 
+    /// Returns the number of moves made in the game.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use connect_four_engine::Game;
+    ///
+    /// let mut game = Game::new();
+    /// assert_eq!(game.moves(), 0);
+    ///
+    /// game.play(3)?;
+    /// assert_eq!(game.moves(), 1);
+    ///
+    /// game.play_moves(&[0, 4, 6, 3])?;
+    /// assert_eq!(game.moves(), 5);
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
     pub fn moves(&self) -> usize {
         self.moves
     }
 
+    /// Returns the [`Player`] whose turn it currently is.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::{Game, Player};
+    ///
+    /// let mut game = Game::new();
+    /// assert_eq!(game.turn(), Player::P1);
+    ///
+    /// game.play(3)?;
+    /// assert_eq!(game.turn(), Player::P2);
+    ///
+    /// game.play(1)?;
+    /// assert_eq!(game.turn(), Player::P1);
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
     pub fn turn(&self) -> Player {
         if self.moves % NUM_PLAYERS == 0 {
             Player::P1
@@ -173,6 +387,7 @@ impl Game {
         }
     }
 
+    /// Returns a unique key for the current game state for use in the transposition table.
     pub(crate) fn key(&self) -> Bitboard {
         self.player_board + self.pieces_board
     }

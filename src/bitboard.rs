@@ -1,7 +1,40 @@
+//! The bitboard type, utility masks, and formatting functions.
+//!
+//! # Configuration
+//!
+//! In a standard 7x6 board, a bitboard represents the following configuration:
+//! ```text
+//! .  .  .  .  .  .  .
+//! 5 12 19 26 33 40 47
+//! 4 11 18 25 32 39 46
+//! 3 10 17 24 31 38 45
+//! 2  9 16 23 30 37 44
+//! 1  8 15 22 29 36 43
+//! 0  7 14 21 28 35 42
+//! ```
+//! 0 is the right-most bit, and 48 is the left-most bit.
+//! There is an extra sentinel row of 0s at the top of the bitboard that denotes the separation of columns.
+
 use crate::{HEIGHT, WIDTH};
 
+/// The size of the bitboard.
 pub type Bitboard = u64;
 
+/// Formats a bitboard into a [`String`].
+///
+/// **Note:** The top sentinel row, which does not contain any pieces, is omitted.
+///
+/// # Examples
+/// ```
+/// use connect_four_engine::bitboard;
+/// bitboard::format(0b_0000000_0000000_0000000_0001111_0000000_0000000_0000000);
+/// // 0 0 0 0 0 0 0
+/// // 0 0 0 0 0 0 0
+/// // 0 0 0 1 0 0 0
+/// // 0 0 0 1 0 0 0
+/// // 0 0 0 1 0 0 0
+/// // 0 0 0 1 0 0 0
+/// ```
 pub fn format(board: Bitboard) -> String {
     let mut text = String::new();
     for row in (0..HEIGHT).rev() {
@@ -23,24 +56,96 @@ pub fn format(board: Bitboard) -> String {
     text
 }
 
+/// Prints a formatted bitboard.
+///
+/// **Note:** The top sentinel row, which does not contain any pieces, is omitted.
+///
+/// # Examples
+/// ```
+/// use connect_four_engine::bitboard;
+/// bitboard::print(0b_0000000_0000000_0000000_0001111_0000000_0000000_0000000);
+/// // 0 0 0 0 0 0 0
+/// // 0 0 0 0 0 0 0
+/// // 0 0 0 1 0 0 0
+/// // 0 0 0 1 0 0 0
+/// // 0 0 0 1 0 0 0
+/// // 0 0 0 1 0 0 0
+/// ```
+///
+/// This is equivalent to:
+/// ```
+/// # use connect_four_engine::bitboard;
+/// # let board = 0;
+/// println!("{}", bitboard::format(board));
+/// ```
 pub fn print(board: Bitboard) {
     println!("{}", format(board));
 }
 
-pub(crate) const fn top_piece_mask(col: usize) -> Bitboard {
+/// Returns a mask representing the top piece in the given 0-indexed column.
+///
+/// # Examples
+/// ```
+/// use connect_four_engine::bitboard::top_piece_mask;
+/// assert_eq!(top_piece_mask(3), 0b_0000000_0000000_0000000_0100000_0000000_0000000_0000000);
+/// // 0 0 0 1 0 0 0
+/// // 0 0 0 0 0 0 0
+/// // 0 0 0 0 0 0 0
+/// // 0 0 0 0 0 0 0
+/// // 0 0 0 0 0 0 0
+/// // 0 0 0 0 0 0 0
+/// ```
+pub const fn top_piece_mask(col: usize) -> Bitboard {
     1 << (bottom_index(col) + HEIGHT - 1)
 }
 
-pub(crate) const fn bottom_piece_mask(col: usize) -> Bitboard {
+/// Returns a mask representing the bottom piece in the given 0-indexed column.
+///
+/// # Examples
+/// ```
+/// use connect_four_engine::bitboard::bottom_piece_mask;
+/// assert_eq!(bottom_piece_mask(3), 0b_0000000_0000000_0000000_0000001_0000000_0000000_0000000);
+/// // 0 0 0 0 0 0 0
+/// // 0 0 0 0 0 0 0
+/// // 0 0 0 0 0 0 0
+/// // 0 0 0 0 0 0 0
+/// // 0 0 0 0 0 0 0
+/// // 0 0 0 1 0 0 0
+/// ```
+pub const fn bottom_piece_mask(col: usize) -> Bitboard {
     1 << bottom_index(col)
 }
 
-pub(crate) const fn column_mask(col: usize) -> Bitboard {
+/// Returns a mask representing the tiles in the given 0-indexed column.
+///
+/// # Examples
+/// ```
+/// use connect_four_engine::bitboard::column_mask;
+/// assert_eq!(column_mask(3), 0b_0000000_0000000_0000000_0111111_0000000_0000000_0000000);
+/// // 0 0 0 1 0 0 0
+/// // 0 0 0 1 0 0 0
+/// // 0 0 0 1 0 0 0
+/// // 0 0 0 1 0 0 0
+/// // 0 0 0 1 0 0 0
+/// // 0 0 0 1 0 0 0
+/// ```
+pub const fn column_mask(col: usize) -> Bitboard {
     FIRST_COLUMN_MASK << bottom_index(col)
 }
 
+/// A mask representing the tiles in the first column.
+///
+/// ```text
+/// 0 0 0 1 0 0 0
+/// 0 0 0 1 0 0 0
+/// 0 0 0 1 0 0 0
+/// 0 0 0 1 0 0 0
+/// 0 0 0 1 0 0 0
+/// 0 0 0 1 0 0 0
+/// ```
 const FIRST_COLUMN_MASK: Bitboard = (1 << HEIGHT) - 1;
 
+/// Returns the index of the bottom tile of a column.
 const fn bottom_index(col: usize) -> usize {
     col * (HEIGHT + 1)
 }
