@@ -310,13 +310,6 @@ impl Game {
         self.winner().is_some()
     }
 
-    /// Checks if the current player wins by playing in a given 0-indexed column.
-    pub(crate) fn is_winning_move(&self, col: usize) -> bool {
-        let board = self.player_board
-            | ((self.pieces_board + bitboard::bottom_piece_mask(col)) & bitboard::column_mask(col));
-        self.check_win(board)
-    }
-
     /// Checks if a given bitboard has a line of four `1`s.
     fn check_win(&self, board: Bitboard) -> bool {
         // Descending diagonal \
@@ -340,6 +333,67 @@ impl Game {
         // Vertical |
         let x = board & (board >> 1);
         x & (x >> 2) != 0
+    }
+
+    /// Returns a bitboard of the playable moves that do not give the opponent an immediate win.
+    pub(crate) fn possible_non_losing_moves(&self) -> Bitboard {
+        let mut possible_moves = self.possible_moves();
+        let opponent_win = self.opponent_winning_moves();
+        let forced_moves = possible_moves & opponent_win;
+
+        if forced_moves != 0 {
+            if forced_moves & (forced_moves - 1) != 0 {
+                return 0;
+            }
+            possible_moves = forced_moves;
+        }
+
+        possible_moves & !(opponent_win >> 1)
+    }
+
+    /// Returns a bitboard of available moves.
+    fn possible_moves(&self) -> Bitboard {
+        (self.pieces_board + bitboard::BOTTOM_ROW_MASK) & bitboard::FULL_BOARD_MASK
+    }
+
+    /// Returns a bitboard of the opponent's winning moves.
+    fn opponent_winning_moves(&self) -> Bitboard {
+        self.winning_moves(self.player_board ^ self.pieces_board)
+    }
+
+    /// Finds the winning moves of a bitboard, returning the tiles as a new bitboard.
+    fn winning_moves(&self, board: Bitboard) -> Bitboard {
+        // Vertical |
+        let mut x = (board << 1) & (board << 2) & (board << 3);
+
+        // Horizontal -
+        let mut y = (board << (HEIGHT + 1)) & (board << (2 * (HEIGHT + 1)));
+        x |= y & (board << (3 * (HEIGHT + 1)));
+        x |= y & (board >> (HEIGHT + 1));
+
+        y = (board >> (HEIGHT + 1)) & (board >> (2 * (HEIGHT + 1)));
+        x |= y & (board >> (3 * (HEIGHT + 1)));
+        x |= y & (board << (HEIGHT + 1));
+
+        // Ascending diagonal /
+        y = (board << HEIGHT) & (board << (2 * HEIGHT));
+        x |= y & (board << (3 * (HEIGHT)));
+        x |= y & (board >> (HEIGHT));
+
+        y = (board >> (HEIGHT)) & (board >> (2 * HEIGHT));
+        x |= y & (board >> (3 * (HEIGHT)));
+        x |= y & (board << (HEIGHT));
+
+        // Descending diagonal \
+        y = (board << (HEIGHT + 2)) & (board << (2 * (HEIGHT + 2)));
+        x |= y & (board << (3 * (HEIGHT + 2)));
+        x |= y & (board >> (HEIGHT + 2));
+
+        y = (board >> (HEIGHT + 2)) & (board >> (2 * (HEIGHT + 2)));
+        x |= y & (board >> (3 * (HEIGHT + 2)));
+        x |= y & (board << (HEIGHT + 2));
+
+        x & (self.pieces_board ^ bitboard::FULL_BOARD_MASK)
     }
 
     /// Returns the number of moves made in the game.

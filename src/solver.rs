@@ -10,7 +10,10 @@
 
 use std::collections::HashMap;
 
-use crate::{bitboard::Bitboard, Game, HEIGHT, WIDTH};
+use crate::{
+    bitboard::{self, Bitboard},
+    Game, HEIGHT, WIDTH,
+};
 
 /// The size of the score of a game position.
 pub type Score = i8;
@@ -21,10 +24,19 @@ pub const MIN_SCORE: Score = -((WIDTH * HEIGHT) as Score) / 2 + 3;
 /// The maximum possible score of a game position.
 pub const MAX_SCORE: Score = ((WIDTH * HEIGHT) as Score + 1) / 2 - 3;
 
+/// The column exploration order, starting from the centermost columns.
+const MOVE_ORDER: [usize; WIDTH] = {
+    let mut moves = [0; WIDTH];
+    let mut i = 0;
+    while i < WIDTH {
+        moves[i] = (WIDTH / 2) + (i % 2) * (i / 2 + 1) - (1 - i % 2) * (i / 2);
+        i += 1;
+    }
+    moves
+};
+
 /// Represents the solver for a Connect Four game.
 pub struct Solver {
-    /// The column exploration order, starting from the centermost columns.
-    move_order: [usize; WIDTH],
     /// The number of nodes visited.
     node_count: usize,
     /// A transposition table used to cache the scores of previously-computed positions.
@@ -47,9 +59,6 @@ impl Solver {
     /// ```
     pub fn solve(game: Game) -> Score {
         let mut solver = Solver {
-            move_order: core::array::from_fn(|i| {
-                (WIDTH / 2) + (i % 2) * (i / 2 + 1) - (1 - i % 2) * (i / 2)
-            }),
             node_count: 0,
             trans_table: HashMap::new(),
         };
@@ -80,13 +89,20 @@ impl Solver {
     fn negamax(&mut self, game: Game, mut alpha: Score, mut beta: Score) -> Score {
         self.node_count += 1;
 
+        let moves = game.possible_non_losing_moves();
+        if moves == 0 {
+            return -((WIDTH * HEIGHT - game.moves()) as Score) / 2;
+        }
+
         if game.is_draw() {
             return 0;
         }
 
-        for col in 0..WIDTH {
-            if game.is_unfilled(col) && game.is_winning_move(col) {
-                return ((WIDTH * HEIGHT + 1 - game.moves()) / 2) as Score;
+        let min = -((WIDTH * HEIGHT - 2 - game.moves()) as Score) / 2;
+        if alpha < min {
+            alpha = min;
+            if alpha >= beta {
+                return alpha;
             }
         }
 
@@ -102,10 +118,11 @@ impl Solver {
             }
         }
 
-        for col in self.move_order {
-            if game.is_unfilled(col) {
+        for col in MOVE_ORDER {
+            if moves & bitboard::column_mask(col) != 0 {
                 let mut new_game = game.clone();
                 new_game.unchecked_play(col);
+
                 let score = -self.negamax(new_game, -beta, -alpha);
                 if score >= beta {
                     return score;
@@ -115,7 +132,6 @@ impl Solver {
                 }
             }
         }
-
         self.trans_table.insert(game.key(), alpha - MIN_SCORE + 1);
         alpha
     }

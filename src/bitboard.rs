@@ -149,3 +149,35 @@ const FIRST_COLUMN_MASK: Bitboard = (1 << HEIGHT) - 1;
 const fn bottom_index(col: usize) -> usize {
     col * (HEIGHT + 1)
 }
+
+/// A mask representing the bottom row of tiles.
+///
+/// ```text
+/// 0 0 0 0 0 0 0
+/// 0 0 0 0 0 0 0
+/// 0 0 0 0 0 0 0
+/// 0 0 0 0 0 0 0
+/// 0 0 0 0 0 0 0
+/// 1 1 1 1 1 1 1
+/// ```
+pub(crate) const BOTTOM_ROW_MASK: Bitboard = {
+    let mut mask = 0;
+    let mut col = 0;
+    while col < WIDTH {
+        mask |= bottom_piece_mask(col);
+        col += 1;
+    }
+    mask
+};
+
+/// A mask representing all the tiles in a board.
+///
+/// ```text
+/// 1 1 1 1 1 1 1
+/// 1 1 1 1 1 1 1
+/// 1 1 1 1 1 1 1
+/// 1 1 1 1 1 1 1
+/// 1 1 1 1 1 1 1
+/// 1 1 1 1 1 1 1
+/// ```
+pub(crate) const FULL_BOARD_MASK: Bitboard = BOTTOM_ROW_MASK * FIRST_COLUMN_MASK;
