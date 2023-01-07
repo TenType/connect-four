@@ -113,8 +113,13 @@ impl Game {
     /// // ^^ out of bounds: unexpected behavior!
     /// ```
     pub fn unchecked_play(&mut self, col: usize) {
+        self.play_board(self.pieces_board + bitboard::bottom_piece_mask(col));
+    }
+
+    /// Plays the current player's piece given a move represented as a bitboard.
+    pub(crate) fn play_board(&mut self, move_board: Bitboard) {
         self.player_board ^= self.pieces_board;
-        self.pieces_board |= self.pieces_board + bitboard::bottom_piece_mask(col);
+        self.pieces_board |= move_board;
         self.moves += 1;
     }
 
@@ -354,6 +359,12 @@ impl Game {
     /// Returns a bitboard of available moves.
     fn possible_moves(&self) -> Bitboard {
         (self.pieces_board + bitboard::BOTTOM_ROW_MASK) & bitboard::FULL_BOARD_MASK
+    }
+
+    /// Returns the number of winning moves the current player has after playing a given move (represented as a bitboard).
+    pub(crate) fn num_of_winning_moves_after_play(&self, move_board: Bitboard) -> u32 {
+        self.winning_moves(self.player_board | move_board)
+            .count_ones()
     }
 
     /// Returns a bitboard of the opponent's winning moves.

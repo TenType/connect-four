@@ -35,6 +35,61 @@ const MOVE_ORDER: [usize; WIDTH] = {
     moves
 };
 
+/// The reversed column exploration order, starting from the edge columns.
+const REV_MOVE_ORDER: [usize; WIDTH] = {
+    let mut moves = [0; WIDTH];
+    let mut i = 0;
+    while i < WIDTH {
+        moves[i] = MOVE_ORDER[WIDTH - i - 1];
+        i += 1;
+    }
+    moves
+};
+
+#[derive(Default)]
+struct MoveSorter {
+    entries: [(Bitboard, u32); WIDTH],
+    len: usize,
+}
+
+/// An array of moves by number of winning moves, sorted in ascending order.
+///
+/// # Implementation
+/// An insertion sort algorithm is used because of it performs well on small arrays and is online (it is able to sort elements as it receives them).
+/// The time complexity is O(n) best case and O(n^2) worst case, and the space complexity is O(1).
+impl MoveSorter {
+    /// Creates a new, empty move sorter.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Inserts a move, represented as a bitboard, and its number of winning moves into the move sorter, ensuring that the array remains sorted.
+    pub fn insert(&mut self, move_board: Bitboard, num_winning_moves: u32) {
+        let mut index = self.len;
+        self.len += 1;
+
+        while index != 0 && self.entries[index - 1].1 > num_winning_moves {
+            self.entries[index] = self.entries[index - 1];
+            index -= 1;
+        }
+
+        self.entries[index] = (move_board, num_winning_moves);
+    }
+}
+
+impl Iterator for MoveSorter {
+    type Item = Bitboard;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.len == 0 {
+            None
+        } else {
+            self.len -= 1;
+            Some(self.entries[self.len].0)
+        }
+    }
+}
+
 /// Represents the solver for a Connect Four game.
 pub struct Solver {
     /// The number of nodes visited.
@@ -89,8 +144,8 @@ impl Solver {
     fn negamax(&mut self, game: Game, mut alpha: Score, mut beta: Score) -> Score {
         self.node_count += 1;
 
-        let moves = game.possible_non_losing_moves();
-        if moves == 0 {
+        let non_losing_moves = game.possible_non_losing_moves();
+        if non_losing_moves == 0 {
             return -((WIDTH * HEIGHT - game.moves()) as Score) / 2;
         }
 
@@ -118,18 +173,25 @@ impl Solver {
             }
         }
 
-        for col in MOVE_ORDER {
-            if moves & bitboard::column_mask(col) != 0 {
-                let mut new_game = game.clone();
-                new_game.unchecked_play(col);
+        let mut moves = MoveSorter::new();
 
-                let score = -self.negamax(new_game, -beta, -alpha);
-                if score >= beta {
-                    return score;
-                }
-                if score > alpha {
-                    alpha = score;
-                }
+        for col in REV_MOVE_ORDER {
+            let move_board = non_losing_moves & bitboard::column_mask(col);
+            if move_board != 0 {
+                moves.insert(move_board, game.num_of_winning_moves_after_play(move_board));
+            }
+        }
+
+        for move_board in moves {
+            let mut new_game = game.clone();
+            new_game.play_board(move_board);
+
+            let score = -self.negamax(new_game, -beta, -alpha);
+            if score >= beta {
+                return score;
+            }
+            if score > alpha {
+                alpha = score;
             }
         }
         self.trans_table.insert(game.key(), alpha - MIN_SCORE + 1);
