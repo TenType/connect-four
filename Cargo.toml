@@ -13,3 +13,13 @@ criterion = { version = "0.4", features = ["html_reports"] }
 [[bench]]
 name = "solver_bench"
 harness = false
+
+[profile.release]
+lto = true
+panic = "abort"
+codegen-units = 1
+
+[profile.test]
+opt-level = 3
+
+
