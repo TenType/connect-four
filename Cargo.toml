@@ -11,7 +11,11 @@ edition = "2021"
 criterion = { version = "0.4", features = ["html_reports"] }
 
 [[bench]]
-name = "solver_bench"
+name = "micro"
+harness = false
+
+[[bench]]
+name = "exhaustive"
 harness = false
 
 [profile.release]
