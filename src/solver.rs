@@ -46,17 +46,17 @@ const REV_MOVE_ORDER: [usize; WIDTH] = {
     moves
 };
 
+/// An array of moves by number of winning moves, sorted in ascending order.
+///
+/// # Implementation
+/// An insertion sort algorithm is used because it performs well on small arrays and is online (able to sort elements as it receives them).
+/// The time complexity is O(n) best case and O(n^2) worst case, and the space complexity is O(1).
 #[derive(Default)]
 struct MoveSorter {
     entries: [(Bitboard, u32); WIDTH],
     len: usize,
 }
 
-/// An array of moves by number of winning moves, sorted in ascending order.
-///
-/// # Implementation
-/// An insertion sort algorithm is used because of it performs well on small arrays and is online (it is able to sort elements as it receives them).
-/// The time complexity is O(n) best case and O(n^2) worst case, and the space complexity is O(1).
 impl MoveSorter {
     /// Creates a new, empty move sorter.
     pub fn new() -> Self {
@@ -106,7 +106,7 @@ impl Solver {
     /// use connect_four_engine::{Game, Solver};
     ///
     /// let mut game = Game::new();
-    /// game.play_moves(&[2, 1, 0, 5, 3, 5, 1, 4])?;
+    /// game.play_slice(&[2, 1, 0, 5, 3, 5, 1, 4])?;
     ///
     /// let score = Solver::solve(game);
     /// assert_eq!(score, 11);
@@ -210,30 +210,29 @@ mod tests {
         let file = File::open(path).unwrap();
         let reader = BufReader::new(file);
 
-        for line_result in reader.lines() {
-            let line = line_result.unwrap();
-            let items: Vec<&str> = line.split(' ').take(2).collect();
-
-            if let [move_str, expected_str] = items[..] {
-                let moves: Vec<usize> = move_str
-                    .chars()
-                    .map(|c| c.to_digit(10).expect("Not a digit") as usize)
-                    .collect();
-
-                let mut game = Game::new();
-                game.unchecked_play_moves(&moves);
-
-                let actual = Solver::solve(game);
-                let expected: Score = expected_str.parse().unwrap();
-
-                assert_eq!(
-                    expected, actual,
-                    "input = {moves:?}, expected = {expected}, actual = {actual}"
-                );
-            } else {
-                panic!("File line should have 2 items");
-            }
+        for line in reader.lines() {
+            test_line(line.unwrap());
         }
+    }
+
+    fn test_line(line: String) {
+        let items: Vec<&str> = line.split(' ').take(2).collect();
+
+        let [moves, expected] = items[..] else {
+            panic!("file line should have two strings separated by a space");
+        };
+
+        let expected: Score = expected.parse().unwrap();
+
+        let mut game = Game::new();
+        game.play_str(moves).expect("invalid move string");
+
+        let actual = Solver::solve(game);
+
+        assert_eq!(
+            expected, actual,
+            "input = {moves}, expected = {expected}, actual = {actual}"
+        );
     }
 
     #[test]

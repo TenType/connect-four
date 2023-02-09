@@ -1,7 +1,6 @@
 //! The bitboard type, utility masks, and formatting functions.
 //!
 //! # Configuration
-//!
 //! In a standard 7x6 board, a bitboard represents the following configuration:
 //! ```text
 //! .  .  .  .  .  .  .
@@ -75,8 +74,7 @@ pub fn format(board: Bitboard) -> String {
 /// This is equivalent to:
 /// ```
 /// # use connect_four_engine::bitboard;
-/// # let board = 0;
-/// println!("{}", bitboard::format(board));
+/// println!("{}", bitboard::format(0b_0000000_0000000_0000000_0001111_0000000_0000000_0000000));
 /// ```
 pub fn print(board: Bitboard) {
     println!("{}", format(board));
@@ -136,12 +134,12 @@ pub const fn column_mask(col: usize) -> Bitboard {
 /// A mask representing the tiles in the first column.
 ///
 /// ```text
-/// 0 0 0 1 0 0 0
-/// 0 0 0 1 0 0 0
-/// 0 0 0 1 0 0 0
-/// 0 0 0 1 0 0 0
-/// 0 0 0 1 0 0 0
-/// 0 0 0 1 0 0 0
+/// 1 0 0 0 0 0 0
+/// 1 0 0 0 0 0 0
+/// 1 0 0 0 0 0 0
+/// 1 0 0 0 0 0 0
+/// 1 0 0 0 0 0 0
+/// 1 0 0 0 0 0 0
 /// ```
 const FIRST_COLUMN_MASK: Bitboard = (1 << HEIGHT) - 1;
 

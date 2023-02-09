@@ -70,9 +70,8 @@ fn bench_file(file_name: &str) -> BenchTimes {
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
 
-    for (i, line_result) in reader.lines().enumerate() {
-        let (input, expected) = read_file_line(line_result.unwrap());
-        let time = bench_vec(input, expected);
+    for (i, line) in reader.lines().enumerate() {
+        let time = bench_line(line.unwrap());
 
         lower_bound = min(lower_bound, time);
         upper_bound = max(upper_bound, time);
@@ -93,26 +92,17 @@ fn bench_file(file_name: &str) -> BenchTimes {
     }
 }
 
-fn read_file_line(line: String) -> (Vec<usize>, Score) {
+fn bench_line(line: String) -> Duration {
     let items: Vec<&str> = line.split(' ').take(2).collect();
 
-    if let [move_str, expected_str] = items[..] {
-        let moves: Vec<usize> = move_str
-            .chars()
-            .map(|c| c.to_digit(10).expect("Not a digit") as usize)
-            .collect();
+    let [moves, expected] = items[..] else {
+        panic!("file line should have two strings separated by a space");
+    };
 
-        let expected: Score = expected_str.parse().unwrap();
+    let expected: Score = expected.parse().unwrap();
 
-        (moves, expected)
-    } else {
-        unreachable!();
-    }
-}
-
-fn bench_vec(input: Vec<usize>, expected: Score) -> Duration {
     let mut game = Game::new();
-    game.unchecked_play_moves(&input);
+    game.play_str(moves).expect("invalid move string");
 
     let now = Instant::now();
     let actual = Solver::solve(game);
@@ -120,7 +110,7 @@ fn bench_vec(input: Vec<usize>, expected: Score) -> Duration {
 
     assert_eq!(
         expected, actual,
-        "input = {input:?}, expected = {expected}, actual = {actual}"
+        "input = {moves}, expected = {expected}, actual = {actual}"
     );
 
     time

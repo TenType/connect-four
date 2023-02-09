@@ -58,7 +58,7 @@ fn bench(c: &mut Criterion) {
     ] {
         let mut game = Game::new();
         if !data.moves.is_empty() {
-            game.play_moves(data.moves).expect("Invalid moves");
+            game.play_slice(data.moves).expect("Invalid moves");
         }
 
         group.throughput(Throughput::Elements(data.moves.len() as u64));

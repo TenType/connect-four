@@ -18,7 +18,7 @@ pub enum Status {
 }
 
 /// Represents a Connect Four game.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Game {
     /// A bitboard representing the pieces belonging to the current player.
     player_board: Bitboard,
@@ -86,18 +86,18 @@ impl Game {
     /// let result = game.play(7); // out of bounds
     /// assert!(result.is_err());
     /// ```
-    pub fn play(&mut self, col: usize) -> Result<Status, Error> {
+    pub fn play(&mut self, col: usize) -> Result<(), Error> {
         self.can_play(col)?;
 
-        self.unchecked_play(col);
+        self.play_unchecked(col);
 
-        Ok(self.status())
+        Ok(())
     }
 
     /// Plays the current player's piece in the given 0-indexed column, without checking if the move can be played.
     ///
     /// # Warning
-    /// Playing into a column that is out of bounds or full may result in unexpected behavior.
+    /// Playing into a column that is out of bounds or full may result in incorrect behavior.
     ///
     /// # Panics
     /// Panics if `column` overflows a bitboard in debug mode.
@@ -107,12 +107,12 @@ impl Game {
     /// use connect_four_engine::Game;
     ///
     /// let mut game = Game::new();
-    /// game.unchecked_play(3);
+    /// game.play_unchecked(3);
     ///
-    /// // game.unchecked_play(7);
-    /// // ^^ out of bounds: unexpected behavior!
+    /// // game.play_unchecked(7);
+    /// // ^^ out of bounds
     /// ```
-    pub fn unchecked_play(&mut self, col: usize) {
+    pub fn play_unchecked(&mut self, col: usize) {
         self.play_board(self.pieces_board + bitboard::bottom_piece_mask(col));
     }
 
@@ -123,59 +123,64 @@ impl Game {
         self.moves += 1;
     }
 
-    /// Plays a sequence of moves from a slice of 0-indexed columns, returning the new status of the game.
+    /// Plays a sequence of moves from a slice of 0-indexed columns.
     ///
     /// # Errors
     /// Returns an error at the first move that cannot be played:
     /// * [`Error::OutOfBounds`] if the column is out of bounds
     /// * [`Error::ColumnFull`] if the column is full
     ///
-    /// # Panics
-    /// Panics if `moves` is empty.
-    ///
     /// # Examples
     /// ```
     /// use connect_four_engine::Game;
     ///
     /// let mut game = Game::new();
-    /// let result = game.play_moves(&[3, 2, 3]);
+    /// let result = game.play_slice(&[3, 2, 3]);
     /// assert!(result.is_ok());
     ///
-    /// let result = game.play_moves(&[3, 3, 3, 3, 3]); // overflowing column
+    /// let result = game.play_slice(&[3, 3, 3, 3, 3]); // overflowing column
     /// assert!(result.is_err());
     /// ```
-    pub fn play_moves(&mut self, moves: &[usize]) -> Result<Status, Error> {
-        let (last, elements) = moves.split_last().expect("slice should not be empty");
-
-        for col in elements {
+    pub fn play_slice(&mut self, moves: &[usize]) -> Result<(), Error> {
+        for col in moves {
             self.play(*col)?;
         }
-        let status = self.play(*last)?;
-        Ok(status)
+        Ok(())
     }
 
-    /// Plays a sequence of moves from a slice of 0-indexed columns, without checking if moves can be played.
+    /// Plays a sequence of moves from a string of 0-indexed columns.
     ///
-    /// # Warning
-    /// A slice that plays into a column that is out of bounds or full may result in unexpected behavior.
-    ///
-    /// # Panics
-    /// Panics if any item in `moves` overflows a bitboard in debug mode.
+    /// # Errors
+    /// Returns an error at the first move that cannot be played:
+    /// * [`Error::OutOfBounds`] if the column is out of bounds
+    /// * [`Error::ColumnFull`] if the column is full
+    /// * [`Error::InvalidColumn`] if the column cannot be parsed
     ///
     /// # Examples
     /// ```
     /// use connect_four_engine::Game;
     ///
     /// let mut game = Game::new();
-    /// game.unchecked_play_moves(&[3, 2, 3]);
+    /// let result = game.play_str("323");
+    /// assert!(result.is_ok());
     ///
-    /// // game.unchecked_play_moves(&[3, 3, 3, 3, 3]);
-    /// // ^^ overflowing column: unexpected behavior!
+    /// let result = game.play_str("33333"); // overflowing column
+    /// assert!(result.is_err());
+    ///
+    /// let result = game.play_str("hello"); // invalid move string
+    /// assert!(result.is_err());
     /// ```
-    pub fn unchecked_play_moves(&mut self, moves: &[usize]) {
-        for col in moves {
-            self.unchecked_play(*col);
+    pub fn play_str(&mut self, moves: &str) -> Result<(), Error> {
+        for c in moves.chars() {
+            let col = c
+                .to_digit(10)
+                .ok_or(Error::InvalidColumn)?
+                .try_into()
+                .unwrap();
+
+            self.play(col)?;
         }
+        Ok(())
     }
 
     /// Returns `Ok(())` if the given 0-indexed column can be played in the game board.
@@ -195,7 +200,7 @@ impl Game {
     /// game.play(3)?;
     /// assert!(game.can_play(3).is_ok());
     ///
-    /// game.play_moves(&[3, 3, 3, 3, 3])?;
+    /// game.play_slice(&[3, 3, 3, 3, 3])?;
     /// assert!(game.can_play(3).is_err()); // column is full
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
@@ -235,18 +240,8 @@ impl Game {
     /// game.play(3)?;
     /// assert_eq!(game.status(), Status::Ongoing);
     ///
-    /// game.play_moves(&[2, 3, 2, 3, 2, 3])?;
+    /// game.play_slice(&[2, 3, 2, 3, 2, 3])?;
     /// assert_eq!(game.status(), Status::Win(Player::P1));
-    /// # Ok::<(), connect_four_engine::Error>(())
-    /// ```
-    ///
-    /// Note that [`self.play()`] calls this method and also returns the status:
-    /// ```
-    /// use connect_four_engine::{Game, Status};
-    ///
-    /// let mut game = Game::new();
-    /// let status = game.play(3)?;
-    /// assert_eq!(status, Status::Ongoing);
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
     pub fn status(&self) -> Status {
@@ -271,7 +266,7 @@ impl Game {
     /// game.play(3)?;
     /// assert!(!game.is_game_over());
     ///
-    /// game.play_moves(&[2, 3, 2, 3, 2, 3])?;
+    /// game.play_slice(&[2, 3, 2, 3, 2, 3])?;
     /// assert!(game.is_game_over());
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
@@ -296,7 +291,7 @@ impl Game {
     /// game.play(3)?;
     /// assert!(game.winner().is_none());
     ///
-    /// game.play_moves(&[2, 3, 2, 3, 2, 3])?;
+    /// game.play_slice(&[2, 3, 2, 3, 2, 3])?;
     /// assert!(game.winner().is_some());
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
@@ -420,7 +415,7 @@ impl Game {
     /// game.play(3)?;
     /// assert_eq!(game.moves(), 1);
     ///
-    /// game.play_moves(&[0, 4, 6, 3])?;
+    /// game.play_slice(&[0, 4, 6, 3])?;
     /// assert_eq!(game.moves(), 5);
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
@@ -489,17 +484,22 @@ mod tests {
 
     #[test]
     fn play_multiple() -> Result<(), Error> {
-        let mut game = Game::new();
-        game.play_moves(&[3, 3, 3, 3])?;
+        let mut game1 = Game::new();
+        game1.play_slice(&[3, 3, 3, 3])?;
+
+        let mut game2 = Game::new();
+        game2.play_str("3333")?;
+
         assert_eq!(
-            game.player_board,
+            game1.player_board,
             0b_0000000_0000000_0000000_0000101_0000000_0000000_0000000
         );
         assert_eq!(
-            game.pieces_board,
+            game1.pieces_board,
             0b_0000000_0000000_0000000_0001111_0000000_0000000_0000000
         );
-        assert_eq!(game.moves, 4);
+        assert_eq!(game1.moves, 4);
+        assert_eq!(game1, game2);
         Ok(())
     }
 
@@ -513,7 +513,7 @@ mod tests {
     #[test]
     fn full_column() {
         let mut game = Game::new();
-        let err = game.play_moves(&[0, 0, 0, 0, 0, 0, 0]).unwrap_err();
+        let err = game.play_slice(&[0, 0, 0, 0, 0, 0, 0]).unwrap_err();
         assert_eq!(err, Error::ColumnFull);
     }
 
@@ -523,77 +523,77 @@ mod tests {
         assert!(!game.is_game_over());
         assert_eq!(game.status(), Status::Ongoing);
 
-        let status = game.play_moves(&[0, 1, 0, 1, 0, 1, 1, 2, 1, 2, 1])?;
+        game.play_slice(&[0, 1, 0, 1, 0, 1, 1, 2, 1, 2, 1])?;
         assert!(!game.is_game_over());
-        assert_eq!(status, Status::Ongoing);
+        assert_eq!(game.status(), Status::Ongoing);
         Ok(())
     }
 
     #[test]
     fn horizontal_win() -> Result<(), Error> {
         let mut game = Game::new();
-        let status = game.play_moves(&[0, 0, 1, 1, 2, 2])?;
+        game.play_slice(&[0, 0, 1, 1, 2, 2])?;
         assert!(!game.is_game_over());
-        assert_eq!(status, Status::Ongoing);
+        assert_eq!(game.status(), Status::Ongoing);
 
-        let status = game.play(3)?;
+        game.play(3)?;
         assert!(game.is_game_over());
-        assert_eq!(status, Status::Win(Player::P1));
+        assert_eq!(game.status(), Status::Win(Player::P1));
         Ok(())
     }
 
     #[test]
     fn vertical_win() -> Result<(), Error> {
         let mut game = Game::new();
-        let status = game.play_moves(&[0, 1, 0, 1, 0, 1])?;
+        game.play_slice(&[0, 1, 0, 1, 0, 1])?;
         assert!(!game.is_game_over());
-        assert_eq!(status, Status::Ongoing);
+        assert_eq!(game.status(), Status::Ongoing);
 
-        let status = game.play(0)?;
+        game.play(0)?;
         assert!(game.is_game_over());
-        assert_eq!(status, Status::Win(Player::P1));
+        assert_eq!(game.status(), Status::Win(Player::P1));
         Ok(())
     }
 
     #[test]
     fn asc_diagonal_win() -> Result<(), Error> {
         let mut game = Game::new();
-        let status = game.play_moves(&[3, 0, 1, 1, 2, 3, 2, 2, 3])?;
+        game.play_slice(&[3, 0, 1, 1, 2, 3, 2, 2, 3])?;
         assert!(!game.is_game_over());
-        assert_eq!(status, Status::Ongoing);
+        assert_eq!(game.status(), Status::Ongoing);
 
-        let status = game.play(3)?;
+        game.play(3)?;
         assert!(game.is_game_over());
-        assert_eq!(status, Status::Win(Player::P2));
+        assert_eq!(game.status(), Status::Win(Player::P2));
         Ok(())
     }
 
     #[test]
     fn desc_diagonal_win() -> Result<(), Error> {
         let mut game = Game::new();
-        let status = game.play_moves(&[3, 6, 5, 5, 4, 3, 4, 4, 3])?;
+        game.play_slice(&[3, 6, 5, 5, 4, 3, 4, 4, 3])?;
         assert!(!game.is_game_over());
-        assert_eq!(status, Status::Ongoing);
+        assert_eq!(game.status(), Status::Ongoing);
 
-        let status = game.play(3)?;
+        game.play(3)?;
         assert!(game.is_game_over());
-        assert_eq!(status, Status::Win(Player::P2));
+        assert_eq!(game.status(), Status::Win(Player::P2));
         Ok(())
     }
 
     #[test]
     fn draw() -> Result<(), Error> {
         let mut game = Game::new();
-        let status = game.play_moves(&[
+        game.play_slice(&[
             0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 4, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4,
             4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6,
         ])?;
         assert!(!game.is_game_over());
-        assert_eq!(status, Status::Ongoing);
+        assert_eq!(game.status(), Status::Ongoing);
 
-        let status = game.play(6)?;
+        game.play(6)?;
         assert!(game.is_game_over());
-        assert_eq!(status, Status::Draw);
+        assert_eq!(game.status(), Status::Draw);
         Ok(())
     }
 }

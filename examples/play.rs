@@ -19,21 +19,18 @@ fn main() {
             }
         };
 
-        match game.play(n) {
-            Ok(status) => {
-                println!("{game}");
+        if let Err(e) = game.play(n) {
+            eprintln!("{e}");
+            continue;
+        }
 
-                use Status::*;
-                match status {
-                    Win(player) => return println!("Player {:?} won!", player as usize + 1),
-                    Draw => return println!("Draw game!"),
-                    Ongoing => (),
-                }
-            }
-            Err(e) => {
-                eprintln!("{e}");
-                continue;
-            }
+        println!("{game}");
+
+        use Status::*;
+        match game.status() {
+            Win(player) => return println!("Player {:?} won!", player as usize + 1),
+            Draw => return println!("Draw game!"),
+            Ongoing => (),
         }
     }
 }

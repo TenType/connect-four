@@ -8,6 +8,8 @@ pub enum Error {
     OutOfBounds,
     /// A move could not be played because the column was full.
     ColumnFull,
+    /// A move could not be parsed.
+    InvalidColumn,
 }
 
 impl std::error::Error for Error {}
@@ -22,6 +24,7 @@ impl fmt::Display for Error {
                 WIDTH - 1
             ),
             ColumnFull => write!(f, "cannot play into a full column"),
+            InvalidColumn => write!(f, "cannot parse move"),
         }
     }
 }
