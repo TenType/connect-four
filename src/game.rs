@@ -4,7 +4,7 @@ use crate::{
     bitboard::{self, Bitboard},
     Error, Player, HEIGHT, NUM_PLAYERS, WIDTH,
 };
-use std::fmt;
+use std::{collections::HashSet, fmt};
 
 /// Represents the state of a game.
 #[derive(Debug, PartialEq, Eq)]
@@ -451,12 +451,75 @@ impl Game {
     pub(crate) fn key(&self) -> Bitboard {
         self.player_board + self.pieces_board
     }
+
+    /// Returns the number of unique game positions at a specific depth.
+    ///
+    /// # Warning
+    /// Running this at a large depth (>14) is computationally expensive.
+    ///
+    /// # Panics
+    /// Panics if given a depth larger than [`WIDTH`] * [`HEIGHT`].
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::Game;
+    ///
+    /// assert_eq!(Game::perft(0), 1);
+    /// assert_eq!(Game::perft(1), 7);
+    /// assert_eq!(Game::perft(2), 49);
+    /// assert_eq!(Game::perft(3), 238);
+    /// ```
+    ///
+    /// Passing a large depth, causing a panic:
+    /// ```should_panic
+    /// use connect_four_engine::Game;
+    /// Game::perft(43); // this panics
+    /// ```
+    pub fn perft(depth: usize) -> usize {
+        assert!(
+            depth <= WIDTH * HEIGHT,
+            "perft: depth is too high (maximum {})",
+            WIDTH * HEIGHT
+        );
+        let game = Self::new();
+        Self::count_nodes(game, depth, &mut HashSet::new())
+    }
+
+    /// Helper function for perft.
+    fn count_nodes(game: Game, depth: usize, seen: &mut HashSet<Bitboard>) -> usize {
+        seen.insert(game.key());
+
+        if depth == 0 {
+            return 1;
+        }
+
+        if game.is_game_over() {
+            return 0;
+        }
+
+        let mut nodes = 0;
+
+        for i in 0..WIDTH {
+            if game.is_unfilled(i) {
+                let mut new_game = game.clone();
+                new_game.play_unchecked(i);
+                if !seen.contains(&new_game.key()) {
+                    nodes += Self::count_nodes(new_game, depth - 1, seen);
+                }
+            }
+        }
+
+        nodes
+    }
 }
 
 #[cfg(test)]
 #[allow(clippy::unusual_byte_groupings)]
 mod tests {
     use super::*;
+    use std::fs::File;
+    use std::io::{prelude::*, BufReader};
+    use std::ops::RangeBounds;
 
     #[test]
     fn new_game() {
@@ -595,5 +658,55 @@ mod tests {
         assert!(game.is_game_over());
         assert_eq!(game.status(), Status::Draw);
         Ok(())
+    }
+
+    fn test_perft_file<T>(depth: T)
+    where
+        T: RangeBounds<usize>,
+    {
+        let file = File::open("./test_data/perft.txt").unwrap();
+        let reader = BufReader::new(file);
+
+        for (i, text) in reader.lines().enumerate() {
+            if !depth.contains(&i) {
+                continue;
+            }
+
+            let expected: usize = text.unwrap().parse().unwrap();
+            let actual = Game::perft(i);
+            assert_eq!(
+                expected, actual,
+                "perft({i}) expected = {expected}, actual = {actual}"
+            );
+        }
+    }
+
+    #[test]
+    fn perft_shallow() {
+        test_perft_file(..14);
+    }
+
+    #[test]
+    #[ignore = "too slow"]
+    fn perft_deep() {
+        test_perft_file(14..28);
+    }
+
+    #[test]
+    #[ignore = "too slow"]
+    fn perft_deeper() {
+        test_perft_file(28..35);
+    }
+
+    #[test]
+    #[ignore = "too slow"]
+    fn perft_deepest() {
+        test_perft_file(35..42);
+    }
+
+    #[test]
+    #[ignore = "too slow"]
+    fn perft_max() {
+        test_perft_file(42..);
     }
 }
