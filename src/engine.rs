@@ -84,34 +84,46 @@ impl Iterator for MoveSorter {
     }
 }
 
-/// Represents the solver for a Connect Four game.
-pub struct Solver {
+/// A solver and analyzer for the game of Connect Four.
+#[derive(Default)]
+pub struct Engine {
     /// The number of nodes visited.
     node_count: usize,
     /// A transposition table used to cache the scores of previously-computed positions.
-    trans_table: HashMap<u64, i8>,
+    pub cache: HashMap<u64, i8>,
 }
 
-impl Solver {
-    /// Solve a game, returning its score.
+impl Engine {
+    /// Creates a new engine with empty cache.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Returns the number of nodes visited.
+    pub fn node_count(&self) -> usize {
+        self.node_count
+    }
+
+    /// Resets the number of nodes visited.
+    pub fn reset_node_count(&mut self) {
+        self.node_count = 0
+    }
+
+    /// Evaluates a game position.
     ///
     /// # Examples
     /// ```
-    /// use connect_four_engine::{Game, Solver};
+    /// use connect_four_engine::{Game, Engine};
     ///
     /// let mut game = Game::new();
     /// game.play_slice(&[2, 1, 0, 5, 3, 5, 1, 4])?;
     ///
-    /// let score = Solver::solve(game);
+    /// let mut engine = Engine::new();
+    /// let score = engine.evaluate(game);
     /// assert_eq!(score, 11);
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
-    pub fn solve(game: Game) -> i8 {
-        let mut solver = Solver {
-            node_count: 0,
-            trans_table: HashMap::new(),
-        };
-
+    pub fn evaluate(&mut self, game: Game) -> i8 {
         let mut min = -((WIDTH * HEIGHT - game.moves()) as i8) / 2;
         let mut max = (WIDTH * HEIGHT - game.moves()) as i8 / 2;
 
@@ -123,7 +135,7 @@ impl Solver {
                 midpoint = max / 2;
             }
 
-            let score = solver.negamax(game, midpoint, midpoint + 1);
+            let score = self.negamax(game, midpoint, midpoint + 1);
 
             if score <= midpoint {
                 max = score;
@@ -156,7 +168,7 @@ impl Solver {
         }
 
         let mut max = ((WIDTH * HEIGHT - 1 - game.moves()) / 2) as i8;
-        if let Some(score) = self.trans_table.get(&game.key()) {
+        if let Some(score) = self.cache.get(&game.key()) {
             max = *score + MIN_SCORE - 1;
         }
 
@@ -188,7 +200,7 @@ impl Solver {
                 alpha = score;
             }
         }
-        self.trans_table.insert(game.key(), alpha - MIN_SCORE + 1);
+        self.cache.insert(game.key(), alpha - MIN_SCORE + 1);
         alpha
     }
 }
@@ -203,13 +215,14 @@ mod tests {
         let path = format!("./test_data/{file_name}.txt");
         let file = File::open(path).unwrap();
         let reader = BufReader::new(file);
+        let mut engine = Engine::new();
 
         for line in reader.lines() {
-            test_line(line.unwrap());
+            test_line(line.unwrap(), &mut engine);
         }
     }
 
-    fn test_line(line: String) {
+    fn test_line(line: String, engine: &mut Engine) {
         let items: Vec<&str> = line.split(' ').take(2).collect();
 
         let [moves, expected] = items[..] else {
@@ -221,7 +234,7 @@ mod tests {
         let mut game = Game::new();
         game.play_str(moves).expect("invalid move string");
 
-        let actual = Solver::solve(game);
+        let actual = engine.evaluate(game);
 
         assert_eq!(
             expected, actual,

@@ -1,4 +1,4 @@
-use connect_four_engine::{Game, Solver};
+use connect_four_engine::{Engine, Game};
 use std::cmp::{max, min};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
@@ -69,9 +69,10 @@ fn bench_file(file_name: &str) -> BenchTimes {
 
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
+    let mut engine = Engine::new();
 
     for (i, line) in reader.lines().enumerate() {
-        let time = bench_line(line.unwrap());
+        let time = bench_line(line.unwrap(), &mut engine);
 
         lower_bound = min(lower_bound, time);
         upper_bound = max(upper_bound, time);
@@ -92,7 +93,7 @@ fn bench_file(file_name: &str) -> BenchTimes {
     }
 }
 
-fn bench_line(line: String) -> Duration {
+fn bench_line(line: String, engine: &mut Engine) -> Duration {
     let items: Vec<&str> = line.split(' ').take(2).collect();
 
     let [moves, expected] = items[..] else {
@@ -105,7 +106,7 @@ fn bench_line(line: String) -> Duration {
     game.play_str(moves).expect("invalid move string");
 
     let now = Instant::now();
-    let actual = Solver::solve(game);
+    let actual = engine.evaluate(game);
     let time = now.elapsed();
 
     assert_eq!(

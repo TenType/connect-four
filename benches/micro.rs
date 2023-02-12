@@ -1,4 +1,4 @@
-use connect_four_engine::{Game, Solver};
+use connect_four_engine::{Engine, Game};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
 struct BenchData<'a> {
@@ -48,6 +48,7 @@ const _FULL_SEARCH: BenchData = BenchData {
 
 fn bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("solve");
+    let mut engine = Engine::new();
 
     for data in [
         END_EASY,
@@ -63,7 +64,7 @@ fn bench(c: &mut Criterion) {
 
         group.throughput(Throughput::Elements(data.moves.len() as u64));
         group.bench_with_input(BenchmarkId::from_parameter(data.name), &game, |b, game| {
-            b.iter(|| Solver::solve(*game));
+            b.iter(|| engine.evaluate(*game));
         });
     }
 

@@ -8,8 +8,8 @@ pub use error::Error;
 pub mod game;
 pub use game::{Game, Status};
 
-pub mod solver;
-pub use solver::Solver;
+pub mod engine;
+pub use engine::Engine;
 
 /// The number of rows in a standard board.
 pub const HEIGHT: usize = 6;
