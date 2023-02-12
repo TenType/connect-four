@@ -16,9 +16,6 @@
 
 use crate::{HEIGHT, WIDTH};
 
-/// The size of the bitboard.
-pub type Bitboard = u64;
-
 /// Formats a bitboard into a [`String`].
 ///
 /// **Note:** The top sentinel row, which does not contain any pieces, is omitted.
@@ -34,7 +31,7 @@ pub type Bitboard = u64;
 /// // 0 0 0 1 0 0 0
 /// // 0 0 0 1 0 0 0
 /// ```
-pub fn format(board: Bitboard) -> String {
+pub fn format(board: u64) -> String {
     let mut text = String::new();
     for row in (0..HEIGHT).rev() {
         for col in 0..WIDTH {
@@ -76,7 +73,7 @@ pub fn format(board: Bitboard) -> String {
 /// # use connect_four_engine::bitboard;
 /// println!("{}", bitboard::format(0b_0000000_0000000_0000000_0001111_0000000_0000000_0000000));
 /// ```
-pub fn print(board: Bitboard) {
+pub fn print(board: u64) {
     println!("{}", format(board));
 }
 
@@ -93,7 +90,7 @@ pub fn print(board: Bitboard) {
 /// // 0 0 0 0 0 0 0
 /// // 0 0 0 0 0 0 0
 /// ```
-pub const fn top_piece_mask(col: usize) -> Bitboard {
+pub const fn top_piece_mask(col: usize) -> u64 {
     1 << (bottom_index(col) + HEIGHT - 1)
 }
 
@@ -110,7 +107,7 @@ pub const fn top_piece_mask(col: usize) -> Bitboard {
 /// // 0 0 0 0 0 0 0
 /// // 0 0 0 1 0 0 0
 /// ```
-pub const fn bottom_piece_mask(col: usize) -> Bitboard {
+pub const fn bottom_piece_mask(col: usize) -> u64 {
     1 << bottom_index(col)
 }
 
@@ -127,7 +124,7 @@ pub const fn bottom_piece_mask(col: usize) -> Bitboard {
 /// // 0 0 0 1 0 0 0
 /// // 0 0 0 1 0 0 0
 /// ```
-pub const fn column_mask(col: usize) -> Bitboard {
+pub const fn column_mask(col: usize) -> u64 {
     FIRST_COLUMN_MASK << bottom_index(col)
 }
 
@@ -141,7 +138,7 @@ pub const fn column_mask(col: usize) -> Bitboard {
 /// 1 0 0 0 0 0 0
 /// 1 0 0 0 0 0 0
 /// ```
-const FIRST_COLUMN_MASK: Bitboard = (1 << HEIGHT) - 1;
+const FIRST_COLUMN_MASK: u64 = (1 << HEIGHT) - 1;
 
 /// Returns the index of the bottom tile of a column.
 const fn bottom_index(col: usize) -> usize {
@@ -158,7 +155,7 @@ const fn bottom_index(col: usize) -> usize {
 /// 0 0 0 0 0 0 0
 /// 1 1 1 1 1 1 1
 /// ```
-pub(crate) const BOTTOM_ROW_MASK: Bitboard = {
+pub(crate) const BOTTOM_ROW_MASK: u64 = {
     let mut mask = 0;
     let mut col = 0;
     while col < WIDTH {
@@ -178,4 +175,4 @@ pub(crate) const BOTTOM_ROW_MASK: Bitboard = {
 /// 1 1 1 1 1 1 1
 /// 1 1 1 1 1 1 1
 /// ```
-pub(crate) const FULL_BOARD_MASK: Bitboard = BOTTOM_ROW_MASK * FIRST_COLUMN_MASK;
+pub(crate) const FULL_BOARD_MASK: u64 = BOTTOM_ROW_MASK * FIRST_COLUMN_MASK;

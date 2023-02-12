@@ -10,19 +10,13 @@
 
 use std::collections::HashMap;
 
-use crate::{
-    bitboard::{self, Bitboard},
-    Game, HEIGHT, WIDTH,
-};
-
-/// The size of the score of a game position.
-pub type Score = i8;
+use crate::{bitboard, Game, HEIGHT, WIDTH};
 
 /// The minimum possible score of a game position.
-pub const MIN_SCORE: Score = -((WIDTH * HEIGHT) as Score) / 2 + 3;
+pub const MIN_SCORE: i8 = -((WIDTH * HEIGHT) as i8) / 2 + 3;
 
 /// The maximum possible score of a game position.
-pub const MAX_SCORE: Score = ((WIDTH * HEIGHT) as Score + 1) / 2 - 3;
+pub const MAX_SCORE: i8 = ((WIDTH * HEIGHT) as i8 + 1) / 2 - 3;
 
 /// The column exploration order, starting from the centermost columns.
 const MOVE_ORDER: [usize; WIDTH] = {
@@ -53,7 +47,7 @@ const REV_MOVE_ORDER: [usize; WIDTH] = {
 /// The time complexity is O(n) best case and O(n^2) worst case, and the space complexity is O(1).
 #[derive(Default)]
 struct MoveSorter {
-    entries: [(Bitboard, u32); WIDTH],
+    entries: [(u64, u32); WIDTH],
     len: usize,
 }
 
@@ -64,7 +58,7 @@ impl MoveSorter {
     }
 
     /// Inserts a move, represented as a bitboard, and its number of winning moves into the move sorter, ensuring that the array remains sorted.
-    pub fn insert(&mut self, move_board: Bitboard, num_winning_moves: u32) {
+    pub fn insert(&mut self, move_board: u64, num_winning_moves: u32) {
         let mut index = self.len;
         self.len += 1;
 
@@ -78,7 +72,7 @@ impl MoveSorter {
 }
 
 impl Iterator for MoveSorter {
-    type Item = Bitboard;
+    type Item = u64;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.len == 0 {
@@ -95,7 +89,7 @@ pub struct Solver {
     /// The number of nodes visited.
     node_count: usize,
     /// A transposition table used to cache the scores of previously-computed positions.
-    trans_table: HashMap<Bitboard, Score>,
+    trans_table: HashMap<u64, i8>,
 }
 
 impl Solver {
@@ -112,14 +106,14 @@ impl Solver {
     /// assert_eq!(score, 11);
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
-    pub fn solve(game: Game) -> Score {
+    pub fn solve(game: Game) -> i8 {
         let mut solver = Solver {
             node_count: 0,
             trans_table: HashMap::new(),
         };
 
-        let mut min = -((WIDTH * HEIGHT - game.moves()) as Score) / 2;
-        let mut max = (WIDTH * HEIGHT - game.moves()) as Score / 2;
+        let mut min = -((WIDTH * HEIGHT - game.moves()) as i8) / 2;
+        let mut max = (WIDTH * HEIGHT - game.moves()) as i8 / 2;
 
         while min < max {
             let mut midpoint = min + (max - min) / 2;
@@ -141,19 +135,19 @@ impl Solver {
     }
 
     /// Recursively solves a game using the negamax search algorithm, returning its score.
-    fn negamax(&mut self, game: Game, mut alpha: Score, mut beta: Score) -> Score {
+    fn negamax(&mut self, game: Game, mut alpha: i8, mut beta: i8) -> i8 {
         self.node_count += 1;
 
         let non_losing_moves = game.possible_non_losing_moves();
         if non_losing_moves == 0 {
-            return -((WIDTH * HEIGHT - game.moves()) as Score) / 2;
+            return -((WIDTH * HEIGHT - game.moves()) as i8) / 2;
         }
 
         if game.is_draw() {
             return 0;
         }
 
-        let min = -((WIDTH * HEIGHT - 2 - game.moves()) as Score) / 2;
+        let min = -((WIDTH * HEIGHT - 2 - game.moves()) as i8) / 2;
         if alpha < min {
             alpha = min;
             if alpha >= beta {
@@ -161,7 +155,7 @@ impl Solver {
             }
         }
 
-        let mut max = ((WIDTH * HEIGHT - 1 - game.moves()) / 2) as Score;
+        let mut max = ((WIDTH * HEIGHT - 1 - game.moves()) / 2) as i8;
         if let Some(score) = self.trans_table.get(&game.key()) {
             max = *score + MIN_SCORE - 1;
         }
@@ -222,7 +216,7 @@ mod tests {
             panic!("file line should have two strings separated by a space");
         };
 
-        let expected: Score = expected.parse().unwrap();
+        let expected: i8 = expected.parse().unwrap();
 
         let mut game = Game::new();
         game.play_str(moves).expect("invalid move string");

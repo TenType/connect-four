@@ -1,9 +1,6 @@
 //! Functionality for creating and playing the game of Connect Four.
 
-use crate::{
-    bitboard::{self, Bitboard},
-    Error, Player, HEIGHT, NUM_PLAYERS, WIDTH,
-};
+use crate::{bitboard, Error, Player, HEIGHT, NUM_PLAYERS, WIDTH};
 use std::{collections::HashSet, fmt};
 
 /// Represents the state of a game.
@@ -21,9 +18,9 @@ pub enum Status {
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct Game {
     /// A bitboard representing the pieces belonging to the current player.
-    player_board: Bitboard,
+    player_board: u64,
     /// A bitboard representing all the pieces played in the game.
-    pieces_board: Bitboard,
+    pieces_board: u64,
     /// The number of moves made in the game.
     moves: usize,
 }
@@ -117,7 +114,7 @@ impl Game {
     }
 
     /// Plays the current player's piece given a move represented as a bitboard.
-    pub(crate) fn play_board(&mut self, move_board: Bitboard) {
+    pub(crate) fn play_board(&mut self, move_board: u64) {
         self.player_board ^= self.pieces_board;
         self.pieces_board |= move_board;
         self.moves += 1;
@@ -311,7 +308,7 @@ impl Game {
     }
 
     /// Checks if a given bitboard has a line of four `1`s.
-    fn check_win(&self, board: Bitboard) -> bool {
+    fn check_win(&self, board: u64) -> bool {
         // Descending diagonal \
         let x = board & (board >> HEIGHT);
         if x & (x >> (2 * HEIGHT)) != 0 {
@@ -336,7 +333,7 @@ impl Game {
     }
 
     /// Returns a bitboard of the playable moves that do not give the opponent an immediate win.
-    pub(crate) fn possible_non_losing_moves(&self) -> Bitboard {
+    pub(crate) fn possible_non_losing_moves(&self) -> u64 {
         let mut possible_moves = self.possible_moves();
         let opponent_win = self.opponent_winning_moves();
         let forced_moves = possible_moves & opponent_win;
@@ -352,23 +349,23 @@ impl Game {
     }
 
     /// Returns a bitboard of available moves.
-    fn possible_moves(&self) -> Bitboard {
+    fn possible_moves(&self) -> u64 {
         (self.pieces_board + bitboard::BOTTOM_ROW_MASK) & bitboard::FULL_BOARD_MASK
     }
 
     /// Returns the number of winning moves the current player has after playing a given move (represented as a bitboard).
-    pub(crate) fn num_of_winning_moves_after_play(&self, move_board: Bitboard) -> u32 {
+    pub(crate) fn num_of_winning_moves_after_play(&self, move_board: u64) -> u32 {
         self.winning_moves(self.player_board | move_board)
             .count_ones()
     }
 
     /// Returns a bitboard of the opponent's winning moves.
-    fn opponent_winning_moves(&self) -> Bitboard {
+    fn opponent_winning_moves(&self) -> u64 {
         self.winning_moves(self.player_board ^ self.pieces_board)
     }
 
     /// Finds the winning moves of a bitboard, returning the tiles as a new bitboard.
-    fn winning_moves(&self, board: Bitboard) -> Bitboard {
+    fn winning_moves(&self, board: u64) -> u64 {
         // Vertical |
         let mut x = (board << 1) & (board << 2) & (board << 3);
 
@@ -448,7 +445,7 @@ impl Game {
     }
 
     /// Returns a unique key for the current game state for use in the transposition table.
-    pub(crate) fn key(&self) -> Bitboard {
+    pub(crate) fn key(&self) -> u64 {
         self.player_board + self.pieces_board
     }
 
@@ -486,7 +483,7 @@ impl Game {
     }
 
     /// Helper function for perft.
-    fn count_nodes(game: Game, depth: usize, seen: &mut HashSet<Bitboard>) -> usize {
+    fn count_nodes(game: Game, depth: usize, seen: &mut HashSet<u64>) -> usize {
         seen.insert(game.key());
 
         if depth == 0 {

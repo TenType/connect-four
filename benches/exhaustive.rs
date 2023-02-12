@@ -1,4 +1,4 @@
-use connect_four_engine::{solver::Score, Game, Solver};
+use connect_four_engine::{Game, Solver};
 use std::cmp::{max, min};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
@@ -99,7 +99,7 @@ fn bench_line(line: String) -> Duration {
         panic!("file line should have two strings separated by a space");
     };
 
-    let expected: Score = expected.parse().unwrap();
+    let expected: i8 = expected.parse().unwrap();
 
     let mut game = Game::new();
     game.play_str(moves).expect("invalid move string");
