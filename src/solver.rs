@@ -129,7 +129,7 @@ impl Solver {
                 midpoint = max / 2;
             }
 
-            let score = solver.negamax(game.clone(), midpoint, midpoint + 1);
+            let score = solver.negamax(game, midpoint, midpoint + 1);
 
             if score <= midpoint {
                 max = score;
@@ -183,7 +183,7 @@ impl Solver {
         }
 
         for move_board in moves {
-            let mut new_game = game.clone();
+            let mut new_game = game;
             new_game.play_board(move_board);
 
             let score = -self.negamax(new_game, -beta, -alpha);

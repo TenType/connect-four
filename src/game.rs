@@ -18,7 +18,7 @@ pub enum Status {
 }
 
 /// Represents a Connect Four game.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct Game {
     /// A bitboard representing the pieces belonging to the current player.
     player_board: Bitboard,
@@ -501,7 +501,7 @@ impl Game {
 
         for i in 0..WIDTH {
             if game.is_unfilled(i) {
-                let mut new_game = game.clone();
+                let mut new_game = game;
                 new_game.play_unchecked(i);
                 if !seen.contains(&new_game.key()) {
                     nodes += Self::count_nodes(new_game, depth - 1, seen);

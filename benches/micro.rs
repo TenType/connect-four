@@ -63,7 +63,7 @@ fn bench(c: &mut Criterion) {
 
         group.throughput(Throughput::Elements(data.moves.len() as u64));
         group.bench_with_input(BenchmarkId::from_parameter(data.name), &game, |b, game| {
-            b.iter(|| Solver::solve(game.clone()));
+            b.iter(|| Solver::solve(*game));
         });
     }
 
