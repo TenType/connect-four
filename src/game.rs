@@ -1,6 +1,7 @@
 //! Functionality for creating and playing the game of Connect Four.
 
 use crate::{bitboard, Error, Player, HEIGHT, NUM_PLAYERS, WIDTH};
+use core::array;
 use std::{collections::HashSet, fmt};
 
 /// Represents the state of a game.
@@ -27,28 +28,16 @@ pub struct Game {
 
 impl fmt::Display for Game {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let turn = self.turn();
-        let current_player = self.player_board;
-        let opponent = self.player_board ^ self.pieces_board;
+        let mut board = self.board();
+        board.reverse();
 
-        for row in (0..HEIGHT).rev() {
-            for col in 0..WIDTH {
-                let index = col * WIDTH + row;
-                if current_player & (1 << index) != 0 {
-                    write!(f, "{turn}")?;
-                } else if opponent & (1 << index) != 0 {
-                    write!(f, "{}", !turn)?;
-                } else {
-                    write!(f, ".")?;
-                };
-
-                write!(f, " ")?;
-            }
-            if row != 0 {
-                writeln!(f)?;
-            }
+        fn fmt_tile(tile: Option<Player>) -> String {
+            tile.map_or("_".into(), |player| player.to_string())
         }
-        Ok(())
+
+        let rows = board.map(|row| row.map(fmt_tile).join(" "));
+
+        write!(f, "{}", rows.join("\n"))
     }
 }
 
@@ -507,6 +496,62 @@ impl Game {
         }
 
         nodes
+    }
+
+    /// Returns the [`Player`] who owns the piece at `(x, y)`, or [`None`] if the tile is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::{Game, Player};
+    ///
+    /// let mut game = Game::new();
+    /// game.play(0)?;
+    /// game.play(1)?;
+    ///
+    /// assert_eq!(game.at(0, 0), Some(Player::P1));
+    /// assert_eq!(game.at(1, 0), Some(Player::P2));
+    /// assert_eq!(game.at(2, 0), None);
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
+    ///
+    /// Passing a coordinate that is out of bounds, causing a panic:
+    /// ```should_panic
+    /// # use connect_four_engine::Game;
+    /// # let game = Game::new();
+    /// let _ = game.at(7, 0); // this panics
+    /// ```
+    pub fn at(&self, x: usize, y: usize) -> Option<Player> {
+        assert!(x < WIDTH, "at: x is out of bounds (maximum {WIDTH})");
+        assert!(y < HEIGHT, "at: y is out of bounds (maximum {HEIGHT})");
+
+        let turn = self.turn();
+        let offset = x * WIDTH + y;
+        let mask = 1 << offset;
+
+        if self.player_board & mask != 0 {
+            Some(turn)
+        } else if (self.player_board ^ self.pieces_board) & mask != 0 {
+            Some(!turn)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the current state of the game as a 2D array where each element is [`Some(Player)`] if that player owns a piece at the location or [`None`] if the tile is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::{Game, Player};
+    ///
+    /// let mut game = Game::new();
+    /// assert_eq!(game.board()[0][3], None);
+    ///
+    /// game.play(3)?;
+    /// assert_eq!(game.board()[0][3], Some(Player::P1));
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
+    pub fn board(&self) -> [[Option<Player>; WIDTH]; HEIGHT] {
+        array::from_fn(|y| array::from_fn(|x| self.at(x, y)))
     }
 }
 
