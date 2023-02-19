@@ -8,15 +8,14 @@
 //! * A negative score signifies that the current player will lose.
 //!   * A position has the score of -1 if the player loses with their last piece, -2 if the player loses with their second to last piece, etc.
 
+use crate::{bitboard, Game, HEIGHT, WIDTH};
 use std::collections::HashMap;
 
-use crate::{bitboard, Game, HEIGHT, WIDTH};
-
 /// The minimum possible score of a game position.
-pub const MIN_SCORE: i8 = -((WIDTH * HEIGHT) as i8) / 2 + 3;
+pub const MIN_SCORE: i8 = -MAX_SCORE;
 
 /// The maximum possible score of a game position.
-pub const MAX_SCORE: i8 = ((WIDTH * HEIGHT) as i8 + 1) / 2 - 3;
+pub const MAX_SCORE: i8 = (WIDTH * HEIGHT) as i8 / 2 - 3;
 
 /// The column exploration order, starting from the centermost columns.
 const MOVE_ORDER: [usize; WIDTH] = {
@@ -121,8 +120,8 @@ impl Engine {
     pub fn evaluate(&mut self, game: Game) -> i8 {
         self.node_count = 0;
 
-        let mut min = -((WIDTH * HEIGHT - game.moves()) as i8) / 2;
         let mut max = (WIDTH * HEIGHT - game.moves()) as i8 / 2;
+        let mut min = -max;
 
         while min < max {
             let mut midpoint = min + (max - min) / 2;
@@ -144,36 +143,26 @@ impl Engine {
     }
 
     /// Recursively solves a game using the negamax search algorithm, returning its score.
-    fn negamax(&mut self, game: Game, mut alpha: i8, mut beta: i8) -> i8 {
+    fn negamax(&mut self, game: Game, alpha: i8, beta: i8) -> i8 {
         self.node_count += 1;
+
+        if game.is_draw() {
+            return 0;
+        }
 
         let non_losing_moves = game.possible_non_losing_moves();
         if non_losing_moves == 0 {
             return -((WIDTH * HEIGHT - game.moves()) as i8) / 2;
         }
 
-        if game.is_draw() {
-            return 0;
+        let min = -((WIDTH * HEIGHT - game.moves()) as i8 - 2) / 2;
+        if min >= beta {
+            return min;
         }
 
-        let min = -((WIDTH * HEIGHT - 2 - game.moves()) as i8) / 2;
-        if alpha < min {
-            alpha = min;
-            if alpha >= beta {
-                return alpha;
-            }
-        }
-
-        let mut max = ((WIDTH * HEIGHT - 1 - game.moves()) / 2) as i8;
-        if let Some(score) = self.cache.get(&game.key()) {
-            max = *score + MIN_SCORE - 1;
-        }
-
-        if beta > max {
-            beta = max;
-            if alpha >= beta {
-                return beta;
-            }
+        let max = self.cache.get(&game.key()).copied().unwrap_or(-min + 1);
+        if alpha >= max {
+            return max;
         }
 
         let mut moves = MoveSorter::new();
@@ -193,11 +182,8 @@ impl Engine {
             if score >= beta {
                 return score;
             }
-            if score > alpha {
-                alpha = score;
-            }
         }
-        self.cache.insert(game.key(), alpha - MIN_SCORE + 1);
+        self.cache.insert(game.key(), alpha);
         alpha
     }
 }
