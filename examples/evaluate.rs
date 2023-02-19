@@ -19,15 +19,12 @@ fn main() {
 
         println!("{game}");
 
-        engine.reset_node_count();
-
         let now = Instant::now();
         let score = engine.evaluate(game);
         let time = now.elapsed();
 
         println!(
-            "Evaluated {score} in {:.3?} with {} nodes ({} in cache)",
-            time,
+            "Evaluated {score} in {time:.3?} with {} nodes ({} in cache)",
             engine.node_count(),
             engine.cache.len(),
         );

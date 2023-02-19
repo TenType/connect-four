@@ -88,7 +88,7 @@ impl Iterator for MoveSorter {
 #[derive(Default)]
 pub struct Engine {
     /// The number of nodes visited.
-    node_count: usize,
+    node_count: u64,
     /// A transposition table used to cache the scores of previously-computed positions.
     pub cache: HashMap<u64, i8>,
 }
@@ -99,14 +99,9 @@ impl Engine {
         Self::default()
     }
 
-    /// Returns the number of nodes visited.
-    pub fn node_count(&self) -> usize {
+    /// Returns the number of nodes visited in the last evaluation.
+    pub fn node_count(&self) -> u64 {
         self.node_count
-    }
-
-    /// Resets the number of nodes visited.
-    pub fn reset_node_count(&mut self) {
-        self.node_count = 0
     }
 
     /// Evaluates a game position.
@@ -124,6 +119,8 @@ impl Engine {
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
     pub fn evaluate(&mut self, game: Game) -> i8 {
+        self.node_count = 0;
+
         let mut min = -((WIDTH * HEIGHT - game.moves()) as i8) / 2;
         let mut max = (WIDTH * HEIGHT - game.moves()) as i8 / 2;
 
