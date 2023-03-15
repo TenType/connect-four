@@ -11,6 +11,9 @@ pub use game::{Game, Status};
 pub mod engine;
 pub use engine::Engine;
 
+mod cache;
+pub use cache::Cache;
+
 /// The number of rows in a standard board.
 pub const HEIGHT: usize = 6;
 

@@ -8,8 +8,7 @@
 //! * A negative score signifies that the current player will lose.
 //!   * A position has the score of -1 if the player loses with their last piece, -2 if the player loses with their second to last piece, etc.
 
-use crate::{bitboard, Game, HEIGHT, WIDTH};
-use std::collections::HashMap;
+use crate::{bitboard, Cache, Game, HEIGHT, WIDTH};
 
 /// The minimum possible score of a game position.
 pub const MIN_SCORE: i8 = -MAX_SCORE;
@@ -89,7 +88,7 @@ pub struct Engine {
     /// The number of nodes visited.
     node_count: u64,
     /// A transposition table used to cache the scores of previously-computed positions.
-    pub cache: HashMap<u64, i8>,
+    pub cache: Cache,
 }
 
 impl Engine {
@@ -160,7 +159,7 @@ impl Engine {
             return min;
         }
 
-        let max = self.cache.get(&game.key()).copied().unwrap_or(-min + 1);
+        let max = self.cache.get(&game.key()).unwrap_or(-min + 1);
         if alpha >= max {
             return max;
         }
