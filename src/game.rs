@@ -434,8 +434,38 @@ impl Game {
     }
 
     /// Returns a unique key for the current game state for use in the transposition table.
-    pub(crate) fn key(&self) -> u64 {
+    pub fn key(&self) -> u64 {
         self.player_board + self.pieces_board
+    }
+
+    /// Returns a symmetric base 3 key for the current game state.
+    pub fn key3(&self) -> u64 {
+        let key_forward = (0..WIDTH).fold(0, |key, col| self.partial_key3(key, col));
+
+        let key_backward = (0..WIDTH)
+            .rev()
+            .fold(0, |key, col| self.partial_key3(key, col));
+
+        if key_forward < key_backward {
+            key_forward / 3
+        } else {
+            key_backward / 3
+        }
+    }
+
+    fn partial_key3(&self, mut key: u64, col: usize) -> u64 {
+        let mut mask = bitboard::bottom_piece_mask(col);
+        while (self.pieces_board & mask) != 0 {
+            key *= 3;
+            if (self.player_board & mask) == 0 {
+                key += 2;
+            } else {
+                key += 1;
+            }
+            mask <<= 1;
+        }
+        key *= 3;
+        key
     }
 
     /// Returns the number of unique game positions at a specific depth.
