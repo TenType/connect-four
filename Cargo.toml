@@ -1,29 +1,11 @@
-[package]
-name = "connect-four-engine"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-
-[dev-dependencies]
-criterion = { version = "0.4", features = ["html_reports"] }
-
-[[bench]]
-name = "micro"
-harness = false
-
-[[bench]]
-name = "exhaustive"
-harness = false
+[workspace]
+members = ["core", "web"]
 
 [profile.release]
 lto = true
 panic = "abort"
 codegen-units = 1
+opt-level = "s"
 
 [profile.test]
 opt-level = 3
-
-
