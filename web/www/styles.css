@@ -1,0 +1,52 @@
+:root {
+  --board-color: #0073ff;
+  --player-red: #ff1616;
+  --player-yellow: #e6e100;
+}
+
+#container {
+  margin: 10px;
+  position: relative;
+}
+
+#board {
+  width: 560px;
+  height: 490px;
+  border: 10px solid var(--board-color);
+  border-radius: 15px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+}
+
+.tile {
+  position: relative;
+  cursor: pointer;
+  background-image: radial-gradient(transparent 60%, var(--board-color) 0);
+}
+
+/* Ensure that tiles appear in front of pieces */
+.tile::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-image: radial-gradient(transparent 60%, var(--board-color) 0);
+  z-index: 1;
+}
+
+.piece {
+  width: 100%;
+  height: 100%;
+  background-color: gray;
+  border-radius: 50%;
+}
+
+.piece[data-color='red'] {
+  background-color: var(--player-red);
+}
+
+.piece[data-color='yellow'] {
+  background-color: var(--player-yellow);
+}

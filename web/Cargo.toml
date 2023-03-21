@@ -10,8 +10,9 @@ crate-type = ["cdylib", "rlib"]
 default = ["console_error_panic_hook"]
 
 [dependencies]
-wasm-bindgen = "0.2.82"
+connect-four-engine = { path = "../core" }
 console_error_panic_hook = { version = "0.1.7", optional = true }
+wasm-bindgen = "0.2.82"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.32"
