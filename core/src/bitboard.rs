@@ -90,7 +90,7 @@ pub fn print(board: u64) {
 /// // 0 0 0 0 0 0 0
 /// // 0 0 0 0 0 0 0
 /// ```
-pub const fn top_piece_mask(col: usize) -> u64 {
+pub const fn top_piece_mask(col: u8) -> u64 {
     1 << (bottom_index(col) + HEIGHT - 1)
 }
 
@@ -107,7 +107,7 @@ pub const fn top_piece_mask(col: usize) -> u64 {
 /// // 0 0 0 0 0 0 0
 /// // 0 0 0 1 0 0 0
 /// ```
-pub const fn bottom_piece_mask(col: usize) -> u64 {
+pub const fn bottom_piece_mask(col: u8) -> u64 {
     1 << bottom_index(col)
 }
 
@@ -124,7 +124,7 @@ pub const fn bottom_piece_mask(col: usize) -> u64 {
 /// // 0 0 0 1 0 0 0
 /// // 0 0 0 1 0 0 0
 /// ```
-pub const fn column_mask(col: usize) -> u64 {
+pub const fn column_mask(col: u8) -> u64 {
     FIRST_COLUMN_MASK << bottom_index(col)
 }
 
@@ -141,7 +141,7 @@ pub const fn column_mask(col: usize) -> u64 {
 const FIRST_COLUMN_MASK: u64 = (1 << HEIGHT) - 1;
 
 /// Returns the index of the bottom tile of a column.
-const fn bottom_index(col: usize) -> usize {
+const fn bottom_index(col: u8) -> u8 {
     col * (HEIGHT + 1)
 }
 

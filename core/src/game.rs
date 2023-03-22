@@ -23,7 +23,7 @@ pub struct Game {
     /// A bitboard representing all the pieces played in the game.
     pieces_board: u64,
     /// The number of moves made in the game.
-    moves: usize,
+    moves: u8,
 }
 
 impl fmt::Display for Game {
@@ -70,7 +70,7 @@ impl Game {
     /// let result = game.play(7); // out of bounds
     /// assert_eq!(result, Err(Error::InvalidColumn));
     /// ```
-    pub fn play(&mut self, col: usize) -> Result<(), Error> {
+    pub fn play(&mut self, col: u8) -> Result<(), Error> {
         self.can_play(col)?;
 
         self.play_unchecked(col);
@@ -96,7 +96,7 @@ impl Game {
     /// // game.play_unchecked(7);
     /// // ^^ out of bounds
     /// ```
-    pub fn play_unchecked(&mut self, col: usize) {
+    pub fn play_unchecked(&mut self, col: u8) {
         self.play_board(self.pieces_board + bitboard::bottom_piece_mask(col));
     }
 
@@ -123,7 +123,7 @@ impl Game {
     /// let result = game.play_slice(&[3, 3, 3]); // overflowing column
     /// assert_eq!(result, Err(Error::ColumnFull));
     /// ```
-    pub fn play_slice(&mut self, moves: &[usize]) -> Result<(), Error> {
+    pub fn play_slice(&mut self, moves: &[u8]) -> Result<(), Error> {
         for col in moves {
             self.play(*col)?;
         }
@@ -181,7 +181,7 @@ impl Game {
     /// assert_eq!(game.can_play(3), Err(Error::ColumnFull)); // column is full
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn can_play(&self, col: usize) -> Result<(), Error> {
+    pub fn can_play(&self, col: u8) -> Result<(), Error> {
         if self.is_game_over() {
             Err(Error::GameOver)
         } else if !self.is_inside(col) {
@@ -194,13 +194,13 @@ impl Game {
     }
 
     /// Checks if the given 0-indexed column is inside the game board.
-    fn is_inside(&self, col: usize) -> bool {
+    fn is_inside(&self, col: u8) -> bool {
         // No need to check for 0 < col because col is unsigned
         col < WIDTH
     }
 
     /// Checks if the given 0-indexed column is not full, assuming that `column` is inside the game board.
-    pub(crate) fn is_unfilled(&self, col: usize) -> bool {
+    pub(crate) fn is_unfilled(&self, col: u8) -> bool {
         (self.pieces_board & bitboard::top_piece_mask(col)) == 0
     }
 
@@ -394,7 +394,7 @@ impl Game {
     /// assert_eq!(game.moves(), 5);
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
-    pub fn moves(&self) -> usize {
+    pub fn moves(&self) -> u8 {
         self.moves
     }
 
@@ -442,7 +442,7 @@ impl Game {
         }
     }
 
-    fn partial_key3(&self, mut key: u64, col: usize) -> u64 {
+    fn partial_key3(&self, mut key: u64, col: u8) -> u64 {
         let mut mask = bitboard::bottom_piece_mask(col);
         while (self.pieces_board & mask) != 0 {
             key *= 3;
@@ -480,7 +480,7 @@ impl Game {
     /// use connect_four_engine::Game;
     /// Game::perft(43); // this panics
     /// ```
-    pub fn perft(depth: usize) -> usize {
+    pub fn perft(depth: u8) -> u64 {
         assert!(
             depth <= WIDTH * HEIGHT,
             "perft: depth is too high (maximum {})",
@@ -491,7 +491,7 @@ impl Game {
     }
 
     /// Helper function for perft.
-    fn count_nodes(game: Game, depth: usize, seen: &mut HashSet<u64>) -> usize {
+    fn count_nodes(game: Game, depth: u8, seen: &mut HashSet<u64>) -> u64 {
         seen.insert(game.key());
 
         if depth == 0 {
@@ -542,7 +542,7 @@ impl Game {
     /// # let game = Game::new();
     /// let _ = game.at(7, 0); // this panics
     /// ```
-    pub fn at(&self, x: usize, y: usize) -> Option<Player> {
+    pub fn at(&self, x: u8, y: u8) -> Option<Player> {
         assert!(x < WIDTH, "at: x is out of bounds (maximum {WIDTH})");
         assert!(y < HEIGHT, "at: y is out of bounds (maximum {HEIGHT})");
 
@@ -579,11 +579,17 @@ impl Game {
     /// # game.play_slice(&[0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 4, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6])?;
     /// # let x = 0;
     /// # let y = 5;
-    /// assert_eq!(game.board()[y][x], game.at(x, y));
+    /// let a = game.board()[y][x];
+    /// # let x = 0;
+    /// # let y = 5;
+    /// let b = game.at(x, y);
+    /// assert_eq!(a, b);
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
-    pub fn board(&self) -> [[Option<Player>; WIDTH]; HEIGHT] {
-        array::from_fn(|y| array::from_fn(|x| self.at(x, y)))
+    pub fn board(&self) -> [[Option<Player>; WIDTH as usize]; HEIGHT as usize] {
+        array::from_fn(|y| {
+            array::from_fn(|x| self.at(x.try_into().unwrap(), y.try_into().unwrap()))
+        })
     }
 }
 
@@ -742,17 +748,19 @@ mod tests {
 
     fn test_perft_file<T>(depth: T)
     where
-        T: RangeBounds<usize>,
+        T: RangeBounds<u8>,
     {
         let file = File::open("./test_data/perft.txt").unwrap();
         let reader = BufReader::new(file);
 
         for (i, text) in reader.lines().enumerate() {
+            let i = i.try_into().unwrap();
+
             if !depth.contains(&i) {
                 continue;
             }
 
-            let expected: usize = text.unwrap().parse().unwrap();
+            let expected: u64 = text.unwrap().parse().unwrap();
             let actual = Game::perft(i);
             assert_eq!(
                 expected, actual,

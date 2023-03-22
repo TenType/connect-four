@@ -15,13 +15,13 @@ mod cache;
 pub use cache::Cache;
 
 /// The number of rows in a standard board.
-pub const HEIGHT: usize = 6;
+pub const HEIGHT: u8 = 6;
 
 /// The number of columns in a standard board.
-pub const WIDTH: usize = 7;
+pub const WIDTH: u8 = 7;
 
 /// The number of players in a game.
-pub const NUM_PLAYERS: usize = 2;
+pub const NUM_PLAYERS: u8 = 2;
 
 /// Represents a single player.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

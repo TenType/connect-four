@@ -11,7 +11,7 @@ fn main() {
         io::stdout().flush().unwrap();
         io::stdin().read_line(&mut input).unwrap();
 
-        let n: usize = match input.trim().parse() {
+        let n: u8 = match input.trim().parse() {
             Ok(n) => n,
             Err(_) => {
                 eprintln!("Must be a nonnegative number");
@@ -28,7 +28,7 @@ fn main() {
 
         use Status::*;
         match game.status() {
-            Win(player) => return println!("Player {:?} won!", player as usize + 1),
+            Win(player) => return println!("Player {:?} won!", player as u8 + 1),
             Draw => return println!("Draw game!"),
             Ongoing => (),
         }

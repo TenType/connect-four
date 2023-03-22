@@ -16,23 +16,13 @@ pub const MIN_SCORE: i8 = -MAX_SCORE;
 /// The maximum possible score of a game position.
 pub const MAX_SCORE: i8 = (WIDTH * HEIGHT) as i8 / 2 - 3;
 
-/// The column exploration order, starting from the centermost columns.
-const MOVE_ORDER: [usize; WIDTH] = {
-    let mut moves = [0; WIDTH];
-    let mut i = 0;
-    while i < WIDTH {
-        moves[i] = (WIDTH / 2) + (i % 2) * (i / 2 + 1) - (1 - i % 2) * (i / 2);
-        i += 1;
-    }
-    moves
-};
-
 /// The reversed column exploration order, starting from the edge columns.
-const REV_MOVE_ORDER: [usize; WIDTH] = {
-    let mut moves = [0; WIDTH];
+const REV_MOVE_ORDER: [u8; WIDTH as usize] = {
+    let mut moves = [0; WIDTH as usize];
     let mut i = 0;
     while i < WIDTH {
-        moves[i] = MOVE_ORDER[WIDTH - i - 1];
+        let n = WIDTH - i - 1;
+        moves[i as usize] = (WIDTH / 2) + (n % 2) * (n / 2 + 1) - (1 - n % 2) * (n / 2);
         i += 1;
     }
     moves
@@ -45,7 +35,7 @@ const REV_MOVE_ORDER: [usize; WIDTH] = {
 /// The time complexity is O(n) best case and O(n^2) worst case, and the space complexity is O(1).
 #[derive(Default)]
 struct MoveSorter {
-    entries: [(u64, u32); WIDTH],
+    entries: [(u64, u32); WIDTH as usize],
     len: usize,
 }
 

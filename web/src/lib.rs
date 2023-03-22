@@ -23,11 +23,11 @@ impl GameWrapper {
         GameWrapper(Game::new())
     }
 
-    pub fn can_play(&self, col: usize) -> bool {
+    pub fn can_play(&self, col: u8) -> bool {
         self.0.can_play(col).is_ok()
     }
 
-    pub fn play(&mut self, col: usize) {
+    pub fn play(&mut self, col: u8) {
         self.0.play(col).expect("column should be valid")
     }
 
@@ -35,7 +35,7 @@ impl GameWrapper {
         self.0.is_game_over()
     }
 
-    pub fn available_row(&self, col: usize) -> usize {
+    pub fn available_row(&self, col: u8) -> u8 {
         for row in 0..HEIGHT {
             if self.0.at(col, row).is_none() {
                 return row;
