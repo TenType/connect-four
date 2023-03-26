@@ -1,5 +1,4 @@
 use connect_four_engine::{Engine, Game};
-use std::cmp::{max, min};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 use std::io::{stdout, Write};
@@ -27,7 +26,7 @@ fn main() {
         done_prefix(file_name);
         println!(
             "{:<9.3?} < {BOLD}{:^9.3?}{RESET} < {:>9.3?}",
-            t.lower_bound, t.average, t.upper_bound
+            t.lower_bound, t.median, t.upper_bound
         );
     }
 
@@ -52,7 +51,7 @@ fn done_prefix(name: &str) {
 
 struct BenchTimes {
     pub lower_bound: Duration,
-    pub average: Duration,
+    pub median: Duration,
     pub upper_bound: Duration,
 }
 
@@ -63,33 +62,26 @@ fn bench_file(file_name: &str) -> BenchTimes {
     let reader = BufReader::new(file);
     let line_count = reader.lines().count();
 
-    let mut lower_bound = Duration::MAX;
-    let mut upper_bound = Duration::ZERO;
-    let mut time_sum = Duration::ZERO;
+    let mut times = [Duration::ZERO; 1000];
 
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
     let mut engine = Engine::new();
 
     for (i, line) in reader.lines().enumerate() {
-        let time = bench_line(line.unwrap(), &mut engine);
-
-        lower_bound = min(lower_bound, time);
-        upper_bound = max(upper_bound, time);
-
-        time_sum += time;
+        times[i] = bench_line(line.unwrap(), &mut engine);
 
         let percent_complete: f64 = (i as f64 / line_count as f64 * 100.0).floor();
         print!("{EDIT}{PROGRESS_COLOR}{file_name:>15}{RESET} Running {i}/{line_count} {BOLD}({percent_complete}%){RESET}");
         stdout().flush().unwrap();
     }
 
-    let average = time_sum / line_count.try_into().unwrap();
+    times.sort_unstable();
 
     BenchTimes {
-        lower_bound,
-        average,
-        upper_bound,
+        lower_bound: times[0],
+        median: times[times.len() / 2],
+        upper_bound: times[times.len() - 1],
     }
 }
 
