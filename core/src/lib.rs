@@ -1,6 +1,6 @@
 //! A library for playing, solving, and analyzing the game of [Connect Four](https://en.wikipedia.org/wiki/Connect_Four).
 
-pub mod bitboard;
+mod bitboard;
 
 mod error;
 pub use error::Error;

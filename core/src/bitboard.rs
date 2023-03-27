@@ -17,21 +17,8 @@
 use crate::{HEIGHT, WIDTH};
 
 /// Formats a bitboard into a [`String`].
-///
 /// **Note:** The top sentinel row, which does not contain any pieces, is omitted.
-///
-/// # Examples
-/// ```
-/// use connect_four_engine::bitboard;
-/// bitboard::format(0b_0000000_0000000_0000000_0001111_0000000_0000000_0000000);
-/// // 0 0 0 0 0 0 0
-/// // 0 0 0 0 0 0 0
-/// // 0 0 0 1 0 0 0
-/// // 0 0 0 1 0 0 0
-/// // 0 0 0 1 0 0 0
-/// // 0 0 0 1 0 0 0
-/// ```
-pub fn format(board: u64) -> String {
+pub(crate) fn format(board: u64) -> String {
     let mut text = String::new();
     for row in (0..HEIGHT).rev() {
         for col in 0..WIDTH {
@@ -43,7 +30,9 @@ pub fn format(board: u64) -> String {
             };
 
             text.push(piece);
-            text.push(' ');
+            if col != WIDTH - 1 {
+                text.push(' ');
+            }
         }
         if row != 0 {
             text.push('\n');
@@ -52,109 +41,7 @@ pub fn format(board: u64) -> String {
     text
 }
 
-/// Prints a formatted bitboard.
-///
-/// **Note:** The top sentinel row, which does not contain any pieces, is omitted.
-///
-/// # Examples
-/// ```
-/// use connect_four_engine::bitboard;
-/// bitboard::print(0b_0000000_0000000_0000000_0001111_0000000_0000000_0000000);
-/// // 0 0 0 0 0 0 0
-/// // 0 0 0 0 0 0 0
-/// // 0 0 0 1 0 0 0
-/// // 0 0 0 1 0 0 0
-/// // 0 0 0 1 0 0 0
-/// // 0 0 0 1 0 0 0
-/// ```
-///
-/// This is equivalent to:
-/// ```
-/// # use connect_four_engine::bitboard;
-/// println!("{}", bitboard::format(0b_0000000_0000000_0000000_0001111_0000000_0000000_0000000));
-/// ```
-pub fn print(board: u64) {
-    println!("{}", format(board));
-}
-
-/// Returns a mask representing the top piece in the given 0-indexed column.
-///
-/// # Examples
-/// ```
-/// use connect_four_engine::bitboard::top_piece_mask;
-/// assert_eq!(top_piece_mask(3), 0b_0000000_0000000_0000000_0100000_0000000_0000000_0000000);
-/// // 0 0 0 1 0 0 0
-/// // 0 0 0 0 0 0 0
-/// // 0 0 0 0 0 0 0
-/// // 0 0 0 0 0 0 0
-/// // 0 0 0 0 0 0 0
-/// // 0 0 0 0 0 0 0
-/// ```
-pub const fn top_piece_mask(col: u8) -> u64 {
-    1 << (bottom_index(col) + HEIGHT - 1)
-}
-
-/// Returns a mask representing the bottom piece in the given 0-indexed column.
-///
-/// # Examples
-/// ```
-/// use connect_four_engine::bitboard::bottom_piece_mask;
-/// assert_eq!(bottom_piece_mask(3), 0b_0000000_0000000_0000000_0000001_0000000_0000000_0000000);
-/// // 0 0 0 0 0 0 0
-/// // 0 0 0 0 0 0 0
-/// // 0 0 0 0 0 0 0
-/// // 0 0 0 0 0 0 0
-/// // 0 0 0 0 0 0 0
-/// // 0 0 0 1 0 0 0
-/// ```
-pub const fn bottom_piece_mask(col: u8) -> u64 {
-    1 << bottom_index(col)
-}
-
-/// Returns a mask representing the tiles in the given 0-indexed column.
-///
-/// # Examples
-/// ```
-/// use connect_four_engine::bitboard::column_mask;
-/// assert_eq!(column_mask(3), 0b_0000000_0000000_0000000_0111111_0000000_0000000_0000000);
-/// // 0 0 0 1 0 0 0
-/// // 0 0 0 1 0 0 0
-/// // 0 0 0 1 0 0 0
-/// // 0 0 0 1 0 0 0
-/// // 0 0 0 1 0 0 0
-/// // 0 0 0 1 0 0 0
-/// ```
-pub const fn column_mask(col: u8) -> u64 {
-    FIRST_COLUMN_MASK << bottom_index(col)
-}
-
-/// A mask representing the tiles in the first column.
-///
-/// ```text
-/// 1 0 0 0 0 0 0
-/// 1 0 0 0 0 0 0
-/// 1 0 0 0 0 0 0
-/// 1 0 0 0 0 0 0
-/// 1 0 0 0 0 0 0
-/// 1 0 0 0 0 0 0
-/// ```
-const FIRST_COLUMN_MASK: u64 = (1 << HEIGHT) - 1;
-
-/// Returns the index of the bottom tile of a column.
-const fn bottom_index(col: u8) -> u8 {
-    col * (HEIGHT + 1)
-}
-
 /// A mask representing the bottom row of tiles.
-///
-/// ```text
-/// 0 0 0 0 0 0 0
-/// 0 0 0 0 0 0 0
-/// 0 0 0 0 0 0 0
-/// 0 0 0 0 0 0 0
-/// 0 0 0 0 0 0 0
-/// 1 1 1 1 1 1 1
-/// ```
 pub(crate) const BOTTOM_ROW_MASK: u64 = {
     let mut mask = 0;
     let mut col = 0;
@@ -166,13 +53,104 @@ pub(crate) const BOTTOM_ROW_MASK: u64 = {
 };
 
 /// A mask representing all the tiles in a board.
-///
-/// ```text
-/// 1 1 1 1 1 1 1
-/// 1 1 1 1 1 1 1
-/// 1 1 1 1 1 1 1
-/// 1 1 1 1 1 1 1
-/// 1 1 1 1 1 1 1
-/// 1 1 1 1 1 1 1
-/// ```
 pub(crate) const FULL_BOARD_MASK: u64 = BOTTOM_ROW_MASK * FIRST_COLUMN_MASK;
+
+/// Returns a mask representing the top piece in the given 0-indexed column.
+pub(crate) const fn top_piece_mask(col: u8) -> u64 {
+    1 << (bottom_index(col) + HEIGHT - 1)
+}
+
+/// Returns a mask representing the bottom piece in the given 0-indexed column.
+pub(crate) const fn bottom_piece_mask(col: u8) -> u64 {
+    1 << bottom_index(col)
+}
+
+/// Returns a mask representing the tiles in the given 0-indexed column.
+pub(crate) const fn column_mask(col: u8) -> u64 {
+    FIRST_COLUMN_MASK << bottom_index(col)
+}
+
+/// A mask representing the tiles in the first column.
+const FIRST_COLUMN_MASK: u64 = (1 << HEIGHT) - 1;
+
+/// Returns the index of the bottom tile of a column.
+const fn bottom_index(col: u8) -> u8 {
+    col * (HEIGHT + 1)
+}
+
+#[cfg(test)]
+#[allow(clippy::unusual_byte_groupings)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_string() {
+        // 0 1 1 1 0 1 1
+        // 1 1 1 0 1 1 0
+        // 1 1 0 0 1 0 0
+        // 0 0 1 0 0 1 1
+        // 0 1 1 0 1 1 1
+        // 1 1 0 1 1 1 0
+        let expected = "0 1 1 1 0 1 1\n1 1 1 0 1 1 0\n1 1 0 0 1 0 0\n0 0 1 0 0 1 1\n0 1 1 0 1 1 1\n1 1 0 1 1 1 0";
+        let actual = format(0b_0100110_0110111_0011011_0100001_0110110_0111011_0011001);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn masks() {
+        // 0 0 0 0 0 0 0
+        // 0 0 0 0 0 0 0
+        // 0 0 0 0 0 0 0
+        // 0 0 0 0 0 0 0
+        // 0 0 0 0 0 0 0
+        // 1 1 1 1 1 1 1
+        assert_eq!(
+            BOTTOM_ROW_MASK,
+            0b_0000001_0000001_0000001_0000001_0000001_0000001_0000001
+        );
+
+        // 1 1 1 1 1 1 1
+        // 1 1 1 1 1 1 1
+        // 1 1 1 1 1 1 1
+        // 1 1 1 1 1 1 1
+        // 1 1 1 1 1 1 1
+        // 1 1 1 1 1 1 1
+        assert_eq!(
+            FULL_BOARD_MASK,
+            0b_0111111_0111111_0111111_0111111_0111111_0111111_0111111
+        );
+
+        // 0 0 0 1 0 0 0
+        // 0 0 0 0 0 0 0
+        // 0 0 0 0 0 0 0
+        // 0 0 0 0 0 0 0
+        // 0 0 0 0 0 0 0
+        // 0 0 0 0 0 0 0
+        assert_eq!(
+            top_piece_mask(3),
+            0b_0000000_0000000_0000000_0100000_0000000_0000000_0000000
+        );
+
+        // 0 0 0 0 0 0 0
+        // 0 0 0 0 0 0 0
+        // 0 0 0 0 0 0 0
+        // 0 0 0 0 0 0 0
+        // 0 0 0 0 0 0 0
+        // 0 0 0 1 0 0 0
+        assert_eq!(
+            bottom_piece_mask(3),
+            0b_0000000_0000000_0000000_0000001_0000000_0000000_0000000
+        );
+
+        // 0 0 0 1 0 0 0
+        // 0 0 0 1 0 0 0
+        // 0 0 0 1 0 0 0
+        // 0 0 0 1 0 0 0
+        // 0 0 0 1 0 0 0
+        // 0 0 0 1 0 0 0
+        assert_eq!(
+            column_mask(3),
+            0b_0000000_0000000_0000000_0111111_0000000_0000000_0000000
+        );
+    }
+}

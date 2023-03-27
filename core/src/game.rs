@@ -26,21 +26,6 @@ pub struct Game {
     moves: u8,
 }
 
-impl fmt::Display for Game {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut board = self.board();
-        board.reverse();
-
-        fn fmt_tile(tile: Option<Player>) -> String {
-            tile.map_or("_".into(), |player| player.to_string())
-        }
-
-        let rows = board.map(|row| row.map(fmt_tile).join(" "));
-
-        write!(f, "{}", rows.join("\n"))
-    }
-}
-
 impl Game {
     /// Creates a new game with an empty board.
     ///
@@ -284,6 +269,33 @@ impl Game {
     /// Checks if the game has ended with a winner.
     fn has_won(&self) -> bool {
         self.winner().is_some()
+    }
+
+    /// Returns a bitboard of a given player's pieces.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::{Game, Player};
+    ///
+    /// let mut game = Game::new();
+    /// assert_eq!(game.bitboard(Player::P1), 0);
+    /// assert_eq!(game.bitboard(Player::P2), 0);
+    ///
+    /// game.play(3)?;
+    /// assert_eq!(game.bitboard(Player::P1), 0b_0000000_0000000_0000000_0000001_0000000_0000000_0000000);
+    /// assert_eq!(game.bitboard(Player::P2), 0);
+    ///
+    /// game.play(0)?;
+    /// assert_eq!(game.bitboard(Player::P1), 0b_0000000_0000000_0000000_0000001_0000000_0000000_0000000);
+    /// assert_eq!(game.bitboard(Player::P2), 0b_0000000_0000000_0000000_0000000_0000000_0000000_0000001);
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
+    pub fn bitboard(&self, player: Player) -> u64 {
+        if player == self.turn() {
+            self.player_board
+        } else {
+            self.player_board ^ self.pieces_board
+        }
     }
 
     /// Checks if a given bitboard has a line of four `1`s.
@@ -590,6 +602,31 @@ impl Game {
         array::from_fn(|y| {
             array::from_fn(|x| self.at(x.try_into().unwrap(), y.try_into().unwrap()))
         })
+    }
+}
+
+impl fmt::Display for Game {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut board = self.board();
+        board.reverse();
+
+        fn fmt_tile(tile: Option<Player>) -> String {
+            tile.map_or("_".into(), |player| player.to_string())
+        }
+
+        let rows = board.map(|row| row.map(fmt_tile).join(" "));
+
+        write!(f, "{}", rows.join("\n"))
+    }
+}
+
+impl fmt::Binary for Game {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "{:?}", Player::P1)?;
+        writeln!(f, "{}", bitboard::format(self.bitboard(Player::P1)))?;
+        writeln!(f)?;
+        writeln!(f, "{:?}", Player::P2)?;
+        write!(f, "{}", bitboard::format(self.bitboard(Player::P2)))
     }
 }
 
