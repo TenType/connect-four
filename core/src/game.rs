@@ -1,8 +1,7 @@
 //! Functionality for creating and playing the game of Connect Four.
 
 use crate::{bitboard, Error, Player, HEIGHT, NUM_PLAYERS, WIDTH};
-use core::array;
-use std::{collections::HashSet, fmt};
+use std::{array, collections::HashSet, fmt};
 
 /// Represents the state of a game.
 #[derive(Debug, PartialEq, Eq)]
@@ -13,6 +12,13 @@ pub enum Status {
     Ongoing,
     /// The game has ended with a winner represented by [`Player`].
     Win(Player),
+}
+
+enum WinDirection {
+    AscendingDiagonal,
+    DescendingDiagonal,
+    Horizontal,
+    Vertical,
 }
 
 /// Represents a Connect Four game.
@@ -257,9 +263,9 @@ impl Game {
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
     pub fn winner(&self) -> Option<Player> {
-        if self.check_win(self.player_board) {
+        if self.is_winning_board(self.player_board) {
             Some(self.turn())
-        } else if self.check_win(self.player_board ^ self.pieces_board) {
+        } else if self.is_winning_board(self.player_board ^ self.pieces_board) {
             Some(!self.turn())
         } else {
             None
@@ -299,28 +305,87 @@ impl Game {
     }
 
     /// Checks if a given bitboard has a line of four `1`s.
-    fn check_win(&self, board: u64) -> bool {
+    fn is_winning_board(&self, board: u64) -> bool {
+        self.check_win(board).is_some()
+    }
+
+    fn check_win(&self, board: u64) -> Option<(u64, WinDirection)> {
+        use WinDirection::*;
+
         // Descending diagonal \
         let x = board & (board >> HEIGHT);
-        if x & (x >> (2 * HEIGHT)) != 0 {
-            return true;
+        let new_board = x & (x >> (HEIGHT * 2));
+        if new_board != 0 {
+            return Some((new_board, DescendingDiagonal));
         }
 
         // Horizontal -
         let x = board & (board >> (HEIGHT + 1));
-        if x & (x >> (2 * (HEIGHT + 1))) != 0 {
-            return true;
+        let new_board = x & (x >> ((HEIGHT + 1) * 2));
+        if new_board != 0 {
+            return Some((new_board, Horizontal));
         }
 
         // Ascending diagonal /
         let x = board & (board >> (HEIGHT + 2));
-        if x & (x >> (2 * (HEIGHT + 2))) != 0 {
-            return true;
+        let new_board = x & (x >> ((HEIGHT + 2) * 2));
+        if new_board != 0 {
+            return Some((new_board, AscendingDiagonal));
         }
 
         // Vertical |
         let x = board & (board >> 1);
-        x & (x >> 2) != 0
+        let new_board = x & (x >> 2);
+        if new_board != 0 {
+            return Some((new_board, Vertical));
+        }
+        None
+    }
+
+    /// Returns an array containing the `(x, y)` coordinates of four pieces that form a winning line horizontally, vertically, or diagonally. If no line exists (there is no winner), then [`None`] is returned.
+    ///
+    /// The order of coordinates is sorted. If there are multiple winning lines, then any one of the lines can be returned.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::Game;
+    ///
+    /// let mut game = Game::new();
+    /// assert_eq!(game.winning_coordinates(), None);
+    ///
+    /// game.play(3)?;
+    /// assert_eq!(game.winning_coordinates(), None);
+    ///
+    /// game.play_slice(&[2, 3, 2, 3, 2, 3])?;
+    /// assert_eq!(game.winning_coordinates(), Some([(3, 0), (3, 1), (3, 2), (3, 3)]));
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
+    pub fn winning_coordinates(&self) -> Option<[(u8, u8); 4]> {
+        let (board, direction) = self.check_win(self.player_board ^ self.pieces_board)?;
+
+        let index = u8::try_from(board.trailing_zeros()).unwrap();
+        let start_col = index / (HEIGHT + 1);
+        let start_row = index % (HEIGHT + 1);
+
+        use WinDirection::*;
+        Some(match direction {
+            AscendingDiagonal => array::from_fn(|i| {
+                let i = u8::try_from(i).unwrap();
+                (start_col + i, start_row + i)
+            }),
+            DescendingDiagonal => array::from_fn(|i| {
+                let i = u8::try_from(i).unwrap();
+                (start_col + i, start_row - i)
+            }),
+            Horizontal => array::from_fn(|i| {
+                let i = u8::try_from(i).unwrap();
+                (start_col + i, start_row)
+            }),
+            Vertical => array::from_fn(|i| {
+                let i = u8::try_from(i).unwrap();
+                (start_col, start_row + i)
+            }),
+        })
     }
 
     /// Returns a bitboard of the playable moves that do not give the opponent an immediate win.
@@ -644,6 +709,8 @@ mod tests {
         assert_eq!(game.player_board, 0);
         assert_eq!(game.pieces_board, 0);
         assert_eq!(game.moves, 0);
+        assert!(!game.is_game_over());
+        assert_eq!(game.status(), Status::Ongoing);
     }
 
     #[test]
@@ -686,101 +753,152 @@ mod tests {
     #[test]
     fn out_of_bounds() {
         let mut game = Game::new();
-        let err = game.play(7).unwrap_err();
-        assert_eq!(err, Error::InvalidColumn);
+        let result = game.play(7);
+        assert_eq!(result, Err(Error::InvalidColumn));
     }
 
     #[test]
     fn full_column() {
         let mut game = Game::new();
-        let err = game.play_slice(&[0, 0, 0, 0, 0, 0, 0]).unwrap_err();
-        assert_eq!(err, Error::ColumnFull);
+        let result = game.play_slice(&[0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(result, Err(Error::ColumnFull));
     }
 
     #[test]
     fn no_win_overflow() -> Result<(), Error> {
+        // _ X _ _ _ _ _
+        // _ X _ _ _ _ _
+        // _ X _ _ _ _ _
+        // X O _ _ _ _ _
+        // X O O _ _ _ _
+        // X O O _ _ _ _
         let mut game = Game::new();
+        game.play_slice(&[0, 1, 0, 1, 0, 1, 1, 2, 1, 2, 1])?;
+
+        assert!(!game.is_game_over());
+        assert_eq!(game.status(), Status::Ongoing);
+        assert_eq!(game.winning_coordinates(), None);
+        assert_eq!(game.play(0), Ok(()));
+        Ok(())
+    }
+
+    fn test_end_game(
+        moves: &[u8],
+        status: Status,
+        win_coords: Option<[(u8, u8); 4]>,
+    ) -> Result<(), Error> {
+        let Some((last, primary)) = moves.split_last() else {
+            panic!("moves slice should have more than 1 move");
+        };
+
+        let mut game = Game::new();
+        game.play_slice(primary)?;
         assert!(!game.is_game_over());
         assert_eq!(game.status(), Status::Ongoing);
 
-        game.play_slice(&[0, 1, 0, 1, 0, 1, 1, 2, 1, 2, 1])?;
-        assert!(!game.is_game_over());
-        assert_eq!(game.status(), Status::Ongoing);
-        assert_eq!(game.play(0), Ok(()));
+        game.play(*last)?;
+        assert!(game.is_game_over());
+        assert_eq!(game.status(), status);
+        assert_eq!(game.winning_coordinates(), win_coords);
+        assert_eq!(game.play(0), Err(Error::GameOver));
         Ok(())
     }
 
     #[test]
     fn horizontal_win() -> Result<(), Error> {
-        let mut game = Game::new();
-        game.play_slice(&[0, 0, 1, 1, 2, 2])?;
-        assert!(!game.is_game_over());
-        assert_eq!(game.status(), Status::Ongoing);
-
-        game.play(3)?;
-        assert!(game.is_game_over());
-        assert_eq!(game.status(), Status::Win(Player::P1));
-        assert_eq!(game.play(0), Err(Error::GameOver));
-        Ok(())
+        // _ _ _ _ _ _ _
+        // _ _ _ _ _ _ _
+        // _ _ _ _ _ _ _
+        // _ _ _ _ _ _ _
+        // O O O _ _ _ _
+        // X X X X _ _ _
+        test_end_game(
+            &[0, 0, 1, 1, 2, 2, 3],
+            Status::Win(Player::P1),
+            Some([(0, 0), (1, 0), (2, 0), (3, 0)]),
+        )
     }
 
     #[test]
     fn vertical_win() -> Result<(), Error> {
-        let mut game = Game::new();
-        game.play_slice(&[0, 1, 0, 1, 0, 1])?;
-        assert!(!game.is_game_over());
-        assert_eq!(game.status(), Status::Ongoing);
-
-        game.play(0)?;
-        assert!(game.is_game_over());
-        assert_eq!(game.status(), Status::Win(Player::P1));
-        assert_eq!(game.play(0), Err(Error::GameOver));
-        Ok(())
+        // _ _ _ _ _ _ _
+        // _ _ _ _ _ _ _
+        // X _ _ _ _ _ _
+        // X O _ _ _ _ _
+        // X O _ _ _ _ _
+        // X O _ _ _ _ _
+        test_end_game(
+            &[0, 1, 0, 1, 0, 1, 0],
+            Status::Win(Player::P1),
+            Some([(0, 0), (0, 1), (0, 2), (0, 3)]),
+        )
     }
 
     #[test]
-    fn asc_diagonal_win() -> Result<(), Error> {
-        let mut game = Game::new();
-        game.play_slice(&[3, 0, 1, 1, 2, 3, 2, 2, 3])?;
-        assert!(!game.is_game_over());
-        assert_eq!(game.status(), Status::Ongoing);
-
-        game.play(3)?;
-        assert!(game.is_game_over());
-        assert_eq!(game.status(), Status::Win(Player::P2));
-        assert_eq!(game.play(0), Err(Error::GameOver));
-        Ok(())
+    fn ascending_diagonal_win() -> Result<(), Error> {
+        // _ _ _ _ _ _ _
+        // _ _ _ _ _ _ _
+        // _ _ _ O _ _ _
+        // _ _ O X _ _ _
+        // _ O X O _ _ _
+        // O X X X _ _ _
+        test_end_game(
+            &[3, 0, 1, 1, 2, 3, 2, 2, 3, 3],
+            Status::Win(Player::P2),
+            Some([(0, 0), (1, 1), (2, 2), (3, 3)]),
+        )
     }
 
     #[test]
-    fn desc_diagonal_win() -> Result<(), Error> {
-        let mut game = Game::new();
-        game.play_slice(&[3, 6, 5, 5, 4, 3, 4, 4, 3])?;
-        assert!(!game.is_game_over());
-        assert_eq!(game.status(), Status::Ongoing);
+    fn descending_diagonal_win() -> Result<(), Error> {
+        // _ _ _ _ _ _ _
+        // _ _ _ _ _ _ _
+        // _ _ _ O _ _ _
+        // _ _ _ X O _ _
+        // _ _ _ O X O _
+        // _ _ _ X X X O
+        test_end_game(
+            &[3, 6, 5, 5, 4, 3, 4, 4, 3, 3],
+            Status::Win(Player::P2),
+            Some([(3, 3), (4, 2), (5, 1), (6, 0)]),
+        )
+    }
 
-        game.play(3)?;
-        assert!(game.is_game_over());
-        assert_eq!(game.status(), Status::Win(Player::P2));
-        assert_eq!(game.play(0), Err(Error::GameOver));
-        Ok(())
+    #[test]
+    fn multiple_wins() -> Result<(), Error> {
+        // _ _ _ _ _ _ _
+        // O O _ _ _ _ O
+        // X X X X X X X
+        // O O X X X O O
+        // O X O X O X O
+        // X O O X O O X
+        test_end_game(
+            &[
+                0, 1, 1, 5, 6, 0, 5, 6, 3, 6, 6, 0, 0, 1, 1, 5, 5, 2, 3, 4, 3, 2, 2, 4, 4, 0, 2, 6,
+                4, 1, 3,
+            ],
+            Status::Win(Player::P1),
+            // currently chooses descending diagonal over other directions, but the implementation is subject to change in the future
+            Some([(3, 3), (4, 2), (5, 1), (6, 0)]),
+        )
     }
 
     #[test]
     fn draw() -> Result<(), Error> {
-        let mut game = Game::new();
-        game.play_slice(&[
-            0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 4, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4,
-            4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6,
-        ])?;
-        assert!(!game.is_game_over());
-        assert_eq!(game.status(), Status::Ongoing);
-
-        game.play(6)?;
-        assert!(game.is_game_over());
-        assert_eq!(game.status(), Status::Draw);
-        assert_eq!(game.play(0), Err(Error::GameOver));
-        Ok(())
+        // O O O X O O O
+        // X X X O X X X
+        // O O O X O O O
+        // X X X O X X X
+        // O O O X O O O
+        // X X X O X X X
+        test_end_game(
+            &[
+                0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 4, 3, 3, 3, 3, 3, 3, 4, 4, 4,
+                4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6,
+            ],
+            Status::Draw,
+            None,
+        )
     }
 
     fn test_perft_file<T>(depth: T)
