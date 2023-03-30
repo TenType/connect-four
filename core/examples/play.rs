@@ -11,15 +11,7 @@ fn main() {
         io::stdout().flush().unwrap();
         io::stdin().read_line(&mut input).unwrap();
 
-        let n: u8 = match input.trim().parse() {
-            Ok(n) => n,
-            Err(_) => {
-                eprintln!("Must be a nonnegative number");
-                continue;
-            }
-        };
-
-        if let Err(e) = game.play(n) {
+        if let Err(e) = game.play_str(input.trim()) {
             eprintln!("{e}");
             continue;
         }
