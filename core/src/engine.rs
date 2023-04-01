@@ -8,13 +8,13 @@
 //! * A negative score signifies that the current player will lose.
 //!   * A position has the score of -1 if the player loses with their last piece, -2 if the player loses with their second to last piece, etc.
 
-use crate::{bitboard, Cache, Game, HEIGHT, WIDTH};
+use crate::{bitboard, Cache, Game, AREA, WIDTH};
 
 /// The minimum possible score of a game position.
 pub const MIN_SCORE: i8 = -MAX_SCORE;
 
 /// The maximum possible score of a game position.
-pub const MAX_SCORE: i8 = (WIDTH * HEIGHT) as i8 / 2 - 3;
+pub const MAX_SCORE: i8 = AREA as i8 / 2 - 3;
 
 /// The reversed column exploration order, starting from the edge columns.
 const REV_MOVE_ORDER: [u8; WIDTH as usize] = {
@@ -109,7 +109,7 @@ impl Engine {
     pub fn evaluate(&mut self, game: Game) -> i8 {
         self.node_count = 0;
 
-        let mut max = (WIDTH * HEIGHT - game.moves()) as i8 / 2;
+        let mut max = (AREA - game.moves()) as i8 / 2;
         let mut min = -max;
 
         while min < max {
@@ -135,16 +135,16 @@ impl Engine {
     fn negamax(&mut self, game: Game, alpha: i8, beta: i8) -> i8 {
         self.node_count += 1;
 
-        if game.is_draw() {
+        if game.has_full_board() {
             return 0;
         }
 
-        let non_losing_moves = game.possible_non_losing_moves();
+        let non_losing_moves = game.non_losing_moves();
         if non_losing_moves == 0 {
-            return -((WIDTH * HEIGHT - game.moves()) as i8) / 2;
+            return -((AREA - game.moves()) as i8) / 2;
         }
 
-        let min = -((WIDTH * HEIGHT - game.moves()) as i8 - 2) / 2;
+        let min = -((AREA - game.moves()) as i8 - 2) / 2;
         if min >= beta {
             return min;
         }
@@ -159,7 +159,7 @@ impl Engine {
         for col in REV_MOVE_ORDER {
             let move_board = non_losing_moves & bitboard::column_mask(col);
             if move_board != 0 {
-                moves.insert(move_board, game.num_of_winning_moves_after_play(move_board));
+                moves.insert(move_board, game.count_winning_moves(move_board));
             }
         }
 

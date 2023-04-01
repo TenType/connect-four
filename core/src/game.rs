@@ -1,6 +1,6 @@
 //! Functionality for creating and playing the game of Connect Four.
 
-use crate::{bitboard, Error, Player, HEIGHT, NUM_PLAYERS, WIDTH};
+use crate::{bitboard, Error, Player, AREA, HEIGHT, NUM_PLAYERS, WIDTH};
 use std::{array, collections::HashSet, fmt};
 
 /// Represents the state of a game.
@@ -44,7 +44,7 @@ impl Game {
         Self::default()
     }
 
-    /// Plays the current player's piece in the given 0-indexed column, returning the new status of the game.
+    /// Plays the current player's piece in the given 0-indexed column.
     ///
     /// # Errors
     /// Returns an [`Error`] if the move cannot be played.
@@ -212,10 +212,10 @@ impl Game {
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
     pub fn status(&self) -> Status {
-        if self.is_draw() {
-            Status::Draw
-        } else if let Some(player) = self.winner() {
+        if let Some(player) = self.winner() {
             Status::Win(player)
+        } else if self.has_full_board() {
+            Status::Draw
         } else {
             Status::Ongoing
         }
@@ -238,12 +238,12 @@ impl Game {
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
     pub fn is_game_over(&self) -> bool {
-        self.is_draw() || self.has_won()
+        self.has_full_board() || self.has_won()
     }
 
-    /// Checks if the game is a draw and no more moves can be played.
-    pub(crate) fn is_draw(&self) -> bool {
-        self.moves >= WIDTH * HEIGHT
+    /// Checks if the board is full and no more moves can be played.
+    pub(crate) fn has_full_board(&self) -> bool {
+        self.moves >= AREA
     }
 
     /// Returns the winner of the game or [`None`] if the game is a draw or still ongoing.
@@ -263,9 +263,7 @@ impl Game {
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
     pub fn winner(&self) -> Option<Player> {
-        if self.is_winning_board(self.player_board) {
-            Some(self.turn())
-        } else if self.is_winning_board(self.player_board ^ self.pieces_board) {
+        if self.is_winning_board(self.opponent_board()) {
             Some(!self.turn())
         } else {
             None
@@ -300,8 +298,13 @@ impl Game {
         if player == self.turn() {
             self.player_board
         } else {
-            self.player_board ^ self.pieces_board
+            self.opponent_board()
         }
+    }
+
+    /// Returns a bitboard representing the pieces belonging to the opposing player.
+    fn opponent_board(&self) -> u64 {
+        self.player_board ^ self.pieces_board
     }
 
     /// Checks if a given bitboard has a line of four `1`s.
@@ -311,6 +314,13 @@ impl Game {
 
     fn check_win(&self, board: u64) -> Option<(u64, WinDirection)> {
         use WinDirection::*;
+
+        // Ascending diagonal /
+        let x = board & (board >> (HEIGHT + 2));
+        let new_board = x & (x >> ((HEIGHT + 2) * 2));
+        if new_board != 0 {
+            return Some((new_board, AscendingDiagonal));
+        }
 
         // Descending diagonal \
         let x = board & (board >> HEIGHT);
@@ -324,13 +334,6 @@ impl Game {
         let new_board = x & (x >> ((HEIGHT + 1) * 2));
         if new_board != 0 {
             return Some((new_board, Horizontal));
-        }
-
-        // Ascending diagonal /
-        let x = board & (board >> (HEIGHT + 2));
-        let new_board = x & (x >> ((HEIGHT + 2) * 2));
-        if new_board != 0 {
-            return Some((new_board, AscendingDiagonal));
         }
 
         // Vertical |
@@ -361,7 +364,7 @@ impl Game {
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
     pub fn winning_coordinates(&self) -> Option<[(u8, u8); 4]> {
-        let (board, direction) = self.check_win(self.player_board ^ self.pieces_board)?;
+        let (board, direction) = self.check_win(self.opponent_board())?;
 
         let index = u8::try_from(board.trailing_zeros()).unwrap();
         let start_col = index / (HEIGHT + 1);
@@ -389,19 +392,24 @@ impl Game {
     }
 
     /// Returns a bitboard of the playable moves that do not give the opponent an immediate win.
-    pub(crate) fn possible_non_losing_moves(&self) -> u64 {
-        let mut possible_moves = self.possible_moves();
-        let opponent_win = self.opponent_winning_moves();
+    /// If there are no possible moves that allow the current player to survive, then 0 is returned.
+    pub(crate) fn non_losing_moves(&self) -> u64 {
+        let possible_moves = self.possible_moves();
+        let opponent_win = self.winning_board(self.opponent_board());
         let forced_moves = possible_moves & opponent_win;
 
         if forced_moves != 0 {
             if forced_moves & (forced_moves - 1) != 0 {
-                return 0;
+                // Opponent has more than one winning move and cannot be stopped
+                0
+            } else {
+                // Opponent has exactly one winning move that can be blocked
+                forced_moves & !(opponent_win >> 1)
             }
-            possible_moves = forced_moves;
+        } else {
+            // Avoid playing below where an opponent can win
+            possible_moves & !(opponent_win >> 1)
         }
-
-        possible_moves & !(opponent_win >> 1)
     }
 
     /// Returns a bitboard of available moves.
@@ -409,46 +417,41 @@ impl Game {
         (self.pieces_board + bitboard::BOTTOM_ROW_MASK) & bitboard::FULL_BOARD_MASK
     }
 
-    /// Returns the number of winning moves the current player has after playing a given move (represented as a bitboard).
-    pub(crate) fn num_of_winning_moves_after_play(&self, move_board: u64) -> u32 {
-        self.winning_moves(self.player_board | move_board)
+    /// Returns the number of winning moves the current player has after playing a given move.
+    pub(crate) fn count_winning_moves(&self, move_board: u64) -> u32 {
+        self.winning_board(self.player_board | move_board)
             .count_ones()
     }
 
-    /// Returns a bitboard of the opponent's winning moves.
-    fn opponent_winning_moves(&self) -> u64 {
-        self.winning_moves(self.player_board ^ self.pieces_board)
-    }
-
-    /// Finds the winning moves of a bitboard, returning the tiles as a new bitboard.
-    fn winning_moves(&self, board: u64) -> u64 {
+    /// Returns a bitboard of tiles that can be played to win the game.
+    fn winning_board(&self, board: u64) -> u64 {
         // Vertical |
         let mut x = (board << 1) & (board << 2) & (board << 3);
 
-        // Horizontal -
-        let mut y = (board << (HEIGHT + 1)) & (board << (2 * (HEIGHT + 1)));
-        x |= y & (board << (3 * (HEIGHT + 1)));
-        x |= y & (board >> (HEIGHT + 1));
-
-        y = (board >> (HEIGHT + 1)) & (board >> (2 * (HEIGHT + 1)));
-        x |= y & (board >> (3 * (HEIGHT + 1)));
-        x |= y & (board << (HEIGHT + 1));
-
         // Ascending diagonal /
-        y = (board << HEIGHT) & (board << (2 * HEIGHT));
+        let y = (board << HEIGHT) & (board << (2 * HEIGHT));
         x |= y & (board << (3 * (HEIGHT)));
         x |= y & (board >> (HEIGHT));
 
-        y = (board >> (HEIGHT)) & (board >> (2 * HEIGHT));
+        let y = (board >> (HEIGHT)) & (board >> (2 * HEIGHT));
         x |= y & (board >> (3 * (HEIGHT)));
         x |= y & (board << (HEIGHT));
 
+        // Horizontal -
+        let y = (board << (HEIGHT + 1)) & (board << (2 * (HEIGHT + 1)));
+        x |= y & (board << (3 * (HEIGHT + 1)));
+        x |= y & (board >> (HEIGHT + 1));
+
+        let y = (board >> (HEIGHT + 1)) & (board >> (2 * (HEIGHT + 1)));
+        x |= y & (board >> (3 * (HEIGHT + 1)));
+        x |= y & (board << (HEIGHT + 1));
+
         // Descending diagonal \
-        y = (board << (HEIGHT + 2)) & (board << (2 * (HEIGHT + 2)));
+        let y = (board << (HEIGHT + 2)) & (board << (2 * (HEIGHT + 2)));
         x |= y & (board << (3 * (HEIGHT + 2)));
         x |= y & (board >> (HEIGHT + 2));
 
-        y = (board >> (HEIGHT + 2)) & (board >> (2 * (HEIGHT + 2)));
+        let y = (board >> (HEIGHT + 2)) & (board >> (2 * (HEIGHT + 2)));
         x |= y & (board >> (3 * (HEIGHT + 2)));
         x |= y & (board << (HEIGHT + 2));
 
@@ -558,11 +561,7 @@ impl Game {
     /// Game::perft(43); // this panics
     /// ```
     pub fn perft(depth: u8) -> u64 {
-        assert!(
-            depth <= WIDTH * HEIGHT,
-            "perft: depth is too high (maximum {})",
-            WIDTH * HEIGHT
-        );
+        assert!(depth <= AREA, "perft: depth is too high (maximum {})", AREA);
         let game = Self::new();
         Self::count_nodes(game, depth, &mut HashSet::new())
     }
@@ -629,7 +628,7 @@ impl Game {
 
         if self.player_board & mask != 0 {
             Some(turn)
-        } else if (self.player_board ^ self.pieces_board) & mask != 0 {
+        } else if self.opponent_board() & mask != 0 {
             Some(!turn)
         } else {
             None
@@ -878,8 +877,26 @@ mod tests {
                 4, 1, 3,
             ],
             Status::Win(Player::P1),
-            // currently chooses descending diagonal over other directions, but the implementation is subject to change in the future
-            Some([(3, 3), (4, 2), (5, 1), (6, 0)]),
+            // currently chooses ascending diagonal over other directions, but the implementation is subject to change in the future
+            Some([(0, 0), (1, 1), (2, 2), (3, 3)]),
+        )
+    }
+
+    #[test]
+    fn last_win() -> Result<(), Error> {
+        // O O O O X X O
+        // X O X X X O X
+        // O X O O O X O
+        // X O X X X O X
+        // O X O O O X O
+        // X O X X X O X
+        test_end_game(
+            &[
+                0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 0, 3, 3, 3, 3, 3, 1, 4, 4, 4, 4, 4, 2,
+                6, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 4, 3,
+            ],
+            Status::Win(Player::P2),
+            Some([(0, 5), (1, 5), (2, 5), (3, 5)]),
         )
     }
 
@@ -899,6 +916,23 @@ mod tests {
             Status::Draw,
             None,
         )
+    }
+
+    #[test]
+    fn format_string() -> Result<(), Error> {
+        // _ _ _ _ _ _ X
+        // _ _ _ _ _ X O
+        // _ _ _ _ O O X
+        // _ _ _ O X X O
+        // _ _ X X O O X
+        // _ X O O X X O
+        let mut game = Game::new();
+        game.play_slice(&[
+            1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6,
+        ])?;
+
+        assert_eq!(game.to_string(), "_ _ _ _ _ _ X\n_ _ _ _ _ X O\n_ _ _ _ O O X\n_ _ _ O X X O\n_ _ X X O O X\n_ X O O X X O");
+        Ok(())
     }
 
     fn test_perft_file<T>(depth: T)
@@ -926,19 +960,19 @@ mod tests {
 
     #[test]
     fn perft_shallow() {
-        test_perft_file(..14);
+        test_perft_file(..7);
     }
 
     #[test]
     #[ignore = "too slow"]
     fn perft_deep() {
-        test_perft_file(14..28);
+        test_perft_file(7..21);
     }
 
     #[test]
     #[ignore = "too slow"]
     fn perft_deeper() {
-        test_perft_file(28..35);
+        test_perft_file(21..35);
     }
 
     #[test]

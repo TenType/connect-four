@@ -14,12 +14,12 @@
 //! 0 is the right-most bit, and 48 is the left-most bit.
 //! There is an extra sentinel row of 0s at the top of the bitboard that denotes the separation of columns.
 
-use crate::{HEIGHT, WIDTH};
+use crate::{AREA, HEIGHT, WIDTH};
 
 /// Formats a bitboard into a [`String`].
 /// **Note:** The top sentinel row, which does not contain any pieces, is omitted.
 pub(crate) fn format(board: u64) -> String {
-    let mut text = String::new();
+    let mut text = String::with_capacity((AREA * 2).into());
     for row in (0..HEIGHT).rev() {
         for col in 0..WIDTH {
             let index = col * WIDTH + row;

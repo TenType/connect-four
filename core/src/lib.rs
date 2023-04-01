@@ -20,6 +20,9 @@ pub const HEIGHT: u8 = 6;
 /// The number of columns in a standard board.
 pub const WIDTH: u8 = 7;
 
+/// The number of tiles in a standard board.
+pub const AREA: u8 = WIDTH * HEIGHT;
+
 /// The number of players in a game.
 pub const NUM_PLAYERS: u8 = 2;
 

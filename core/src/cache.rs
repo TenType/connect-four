@@ -22,7 +22,7 @@ impl Cache {
         self.table.insert(key, value);
     }
 
-    /// Clears the map, removing all key-value pairs.
+    /// Clears the cache, removing all key-value pairs.
     pub fn clear(&mut self) {
         self.table.clear();
     }
