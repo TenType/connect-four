@@ -44,7 +44,7 @@ impl Game {
         Self::default()
     }
 
-    /// Plays the current player's piece in the given 0-indexed column.
+    /// Plays the current player's piece in the given 0-indexed column, returning the row number of the piece.
     ///
     /// # Errors
     /// Returns an [`Error`] if the move cannot be played.
@@ -56,17 +56,17 @@ impl Game {
     /// let mut game = Game::new();
     ///
     /// let result = game.play(3);
-    /// assert_eq!(result, Ok(()));
+    /// assert_eq!(result, Ok(0));
     ///
     /// let result = game.play(7); // out of bounds
     /// assert_eq!(result, Err(Error::InvalidColumn));
     /// ```
-    pub fn play(&mut self, col: u8) -> Result<(), Error> {
-        self.can_play(col)?;
+    pub fn play(&mut self, col: u8) -> Result<u8, Error> {
+        let row = self.can_play(col)?;
 
         self.play_unchecked(col);
 
-        Ok(())
+        Ok(row)
     }
 
     /// Plays the current player's piece in the given 0-indexed column, without checking if the move can be played.
@@ -98,10 +98,13 @@ impl Game {
         self.moves += 1;
     }
 
-    /// Plays a sequence of moves from a slice of 0-indexed columns.
+    /// Plays a sequence of moves from a slice of 0-indexed columns, returning the row number of the last piece played.
     ///
     /// # Errors
     /// Returns an [`Error`] at the first move that cannot be played.
+    ///
+    /// # Panics
+    /// Panics if the slice is empty.
     ///
     /// # Examples
     /// ```
@@ -109,22 +112,29 @@ impl Game {
     ///
     /// let mut game = Game::new();
     /// let result = game.play_slice(&[3, 2, 3, 3, 3]);
-    /// assert_eq!(result, Ok(()));
+    /// assert_eq!(result, Ok(3));
     ///
     /// let result = game.play_slice(&[3, 3, 3]); // overflowing column
     /// assert_eq!(result, Err(Error::ColumnFull));
     /// ```
-    pub fn play_slice(&mut self, moves: &[u8]) -> Result<(), Error> {
+    pub fn play_slice(&mut self, moves: &[u8]) -> Result<u8, Error> {
+        let (last, moves) = moves
+            .split_last()
+            .expect("play_slice: moves should not be empty");
+
         for col in moves {
             self.play(*col)?;
         }
-        Ok(())
+        self.play(*last)
     }
 
-    /// Plays a sequence of moves from a string of 0-indexed columns.
+    /// Plays a sequence of moves from a string of 0-indexed columns, returning the row number of the last piece played.
     ///
     /// # Errors
     /// Returns an [`Error`] at the first move that cannot be played.
+    ///
+    /// # Panics
+    /// Panics if the string is empty.
     ///
     /// # Examples
     /// ```
@@ -132,7 +142,7 @@ impl Game {
     ///
     /// let mut game = Game::new();
     /// let result = game.play_str("323");
-    /// assert_eq!(result, Ok(()));
+    /// assert_eq!(result, Ok(1));
     ///
     /// let result = game.play_str("33333"); // overflowing column
     /// assert_eq!(result, Err(Error::ColumnFull));
@@ -140,20 +150,31 @@ impl Game {
     /// let result = game.play_str("hello"); // invalid move string
     /// assert_eq!(result, Err(Error::InvalidColumn));
     /// ```
-    pub fn play_str(&mut self, moves: &str) -> Result<(), Error> {
-        for c in moves.chars() {
-            let col = c
-                .to_digit(10)
-                .ok_or(Error::InvalidColumn)?
-                .try_into()
-                .unwrap();
+    pub fn play_str(&mut self, moves: &str) -> Result<u8, Error> {
+        fn char_to_col(c: char) -> Result<u8, Error> {
+            if let Some(digit) = c.to_digit(10) {
+                Ok(u8::try_from(digit).unwrap())
+            } else {
+                Err(Error::InvalidColumn)
+            }
+        }
 
+        let last_char = moves
+            .chars()
+            .last()
+            .expect("play_str: moves should not be empty");
+
+        let last = char_to_col(last_char)?;
+
+        for c in moves[..moves.len() - 1].chars() {
+            let col = char_to_col(c)?;
             self.play(col)?;
         }
-        Ok(())
+
+        self.play(last)
     }
 
-    /// Returns [`Ok(())`] if the given 0-indexed column can be played in the game board.
+    /// Checks if a piece can be played in a given 0-indexed column, returning the number of pieces in the column.
     ///
     /// # Errors
     /// Returns an [`Error`] if the move cannot be played.
@@ -163,16 +184,16 @@ impl Game {
     /// use connect_four_engine::{Error, Game};
     ///
     /// let mut game = Game::new();
-    /// assert_eq!(game.can_play(3), Ok(()));
+    /// assert_eq!(game.can_play(3), Ok(0));
     ///
     /// game.play(3)?;
-    /// assert_eq!(game.can_play(3), Ok(()));
+    /// assert_eq!(game.can_play(3), Ok(1));
     ///
     /// game.play_slice(&[3, 3, 3, 3, 3])?;
     /// assert_eq!(game.can_play(3), Err(Error::ColumnFull)); // column is full
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn can_play(&self, col: u8) -> Result<(), Error> {
+    pub fn can_play(&self, col: u8) -> Result<u8, Error> {
         if self.is_game_over() {
             Err(Error::GameOver)
         } else if !self.is_inside(col) {
@@ -180,7 +201,7 @@ impl Game {
         } else if !self.is_unfilled(col) {
             Err(Error::ColumnFull)
         } else {
-            Ok(())
+            Ok(self.pieces_in_col(col))
         }
     }
 
@@ -193,6 +214,14 @@ impl Game {
     /// Checks if the given 0-indexed column is not full, assuming that `column` is inside the game board.
     pub(crate) fn is_unfilled(&self, col: u8) -> bool {
         (self.pieces_board & bitboard::top_piece_mask(col)) == 0
+    }
+
+    /// Returns the number of pieces in a given column.
+    fn pieces_in_col(&self, col: u8) -> u8 {
+        (self.pieces_board & bitboard::column_mask(col))
+            .count_ones()
+            .try_into()
+            .unwrap()
     }
 
     /// Returns a [`Status`] representing the current state of the game.
@@ -777,7 +806,7 @@ mod tests {
         assert!(!game.is_game_over());
         assert_eq!(game.status(), Status::Ongoing);
         assert_eq!(game.winning_coordinates(), None);
-        assert_eq!(game.play(0), Ok(()));
+        assert_eq!(game.play(0), Ok(3));
         Ok(())
     }
 

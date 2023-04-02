@@ -28,7 +28,13 @@ function setup(game) {
  * @param {number} col
  */
 function makeMove(game, col) {
-  if (game.is_game_over() || !game.can_play(col)) return;
+  if (game.is_game_over()) return;
+
+  const row = HEIGHT - game.play(col) - 1;
+  if (row < 0) {
+    // Move cannot be played
+    return;
+  }
 
   const piece = document.createElement('div');
   piece.classList.add('piece');
@@ -38,10 +44,6 @@ function makeMove(game, col) {
   } else {
     piece.dataset.color = 'yellow';
   }
-
-  const row = HEIGHT - game.available_row(col) - 1;
-
-  game.play(col);
 
   const index = row * 7 + col;
   const gridCell = board.children[index];

@@ -1,4 +1,4 @@
-use connect_four_engine::{Game, Player, Status, HEIGHT};
+use connect_four_engine::{Game, Player, Status};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(start)]
@@ -23,25 +23,12 @@ impl GameWrapper {
         GameWrapper(Game::new())
     }
 
-    pub fn can_play(&self, col: u8) -> bool {
-        self.0.can_play(col).is_ok()
-    }
-
-    pub fn play(&mut self, col: u8) {
-        self.0.play(col).expect("column should be valid")
+    pub fn play(&mut self, col: u8) -> u8 {
+        self.0.play(col).unwrap_or(u8::MAX)
     }
 
     pub fn is_game_over(&self) -> bool {
         self.0.is_game_over()
-    }
-
-    pub fn available_row(&self, col: u8) -> u8 {
-        for row in 0..HEIGHT {
-            if self.0.at(col, row).is_none() {
-                return row;
-            }
-        }
-        panic!("no pieces in column {col}")
     }
 
     pub fn first_player_turn(&self) -> bool {
