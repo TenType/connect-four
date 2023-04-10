@@ -447,6 +447,11 @@ impl Game {
         (self.pieces_board + bitboard::BOTTOM_ROW_MASK) & bitboard::FULL_BOARD_MASK
     }
 
+    /// Checks whether the current player can win with their next move.
+    pub(crate) fn can_win_next(&self) -> bool {
+        self.winning_board(self.player_board) & self.possible_moves() != 0
+    }
+
     /// Returns the number of winning moves the current player has after playing a given move.
     pub(crate) fn count_winning_moves(&self, move_board: u64) -> u32 {
         self.winning_board(self.player_board | move_board)
@@ -506,6 +511,10 @@ impl Game {
     /// ```
     pub fn moves(&self) -> u8 {
         self.moves
+    }
+
+    pub(crate) fn position_score(&self) -> i8 {
+        ((AREA - self.moves()) as i8) / 2
     }
 
     /// Returns the [`Player`] whose turn it currently is.

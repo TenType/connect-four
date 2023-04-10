@@ -109,7 +109,11 @@ impl Engine {
     pub fn evaluate(&mut self, game: Game) -> i8 {
         self.node_count = 0;
 
-        let mut max = (AREA - game.moves()) as i8 / 2;
+        if game.can_win_next() {
+            return game.position_score();
+        }
+
+        let mut max = game.position_score();
         let mut min = -max;
 
         while min < max {
@@ -141,10 +145,10 @@ impl Engine {
 
         let non_losing_moves = game.non_losing_moves();
         if non_losing_moves == 0 {
-            return -((AREA - game.moves()) as i8) / 2;
+            return -game.position_score();
         }
 
-        let min = -((AREA - game.moves()) as i8 - 2) / 2;
+        let min = -game.position_score() + 1;
         if min >= beta {
             return min;
         }
@@ -202,7 +206,10 @@ mod tests {
         };
 
         let expected: i8 = expected.parse().unwrap();
+        assert_eval(engine, moves, expected);
+    }
 
+    fn assert_eval(engine: &mut Engine, moves: &str, expected: i8) {
         let mut game = Game::new();
         game.play_str(moves).expect("invalid move string");
 
@@ -244,5 +251,10 @@ mod tests {
     #[test]
     fn end_easy() {
         test_file("end_easy");
+    }
+
+    #[test]
+    fn last_move() {
+        assert_eval(&mut Engine::new(), "112233", 18);
     }
 }
