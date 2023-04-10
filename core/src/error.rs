@@ -1,4 +1,3 @@
-use crate::WIDTH;
 use std::fmt;
 
 /// A list of possible errors in a game.
@@ -19,8 +18,8 @@ impl fmt::Display for Error {
         use Error::*;
         match *self {
             ColumnFull => write!(f, "cannot play into a full column"),
-            InvalidColumn => write!(f, "column must be in the range 0..{WIDTH}",),
-            GameOver => write!(f, "no more moves can be played because the game is over"),
+            InvalidColumn => write!(f, "column is out of bounds or cannot be parsed"),
+            GameOver => write!(f, "moves cannot be played after the game ends"),
         }
     }
 }

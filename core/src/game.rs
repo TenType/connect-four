@@ -128,7 +128,7 @@ impl Game {
         self.play(*last)
     }
 
-    /// Plays a sequence of moves from a string of 0-indexed columns, returning the row number of the last piece played.
+    /// Plays a sequence of moves from a string of 1-indexed columns, returning the row number of the last piece played.
     ///
     /// # Errors
     /// Returns an [`Error`] at the first move that cannot be played.
@@ -141,22 +141,23 @@ impl Game {
     /// use connect_four_engine::{Error, Game};
     ///
     /// let mut game = Game::new();
-    /// let result = game.play_str("323");
+    /// let result = game.play_str("434");
     /// assert_eq!(result, Ok(1));
     ///
-    /// let result = game.play_str("33333"); // overflowing column
+    /// let result = game.play_str("44444"); // overflowing column
     /// assert_eq!(result, Err(Error::ColumnFull));
+    ///
+    /// let result = game.play_str("0123"); // invalid move string (0-indexed)
+    /// assert_eq!(result, Err(Error::InvalidColumn));
     ///
     /// let result = game.play_str("hello"); // invalid move string
     /// assert_eq!(result, Err(Error::InvalidColumn));
     /// ```
     pub fn play_str(&mut self, moves: &str) -> Result<u8, Error> {
         fn char_to_col(c: char) -> Result<u8, Error> {
-            if let Some(digit) = c.to_digit(10) {
-                Ok(u8::try_from(digit).unwrap())
-            } else {
-                Err(Error::InvalidColumn)
-            }
+            let n = c.to_digit(10).ok_or(Error::InvalidColumn)?;
+            let n = u8::try_from(n).unwrap();
+            n.checked_sub(1).ok_or(Error::InvalidColumn)
         }
 
         let last_char = moves
@@ -763,7 +764,7 @@ mod tests {
         game1.play_slice(&[3, 3, 3, 3])?;
 
         let mut game2 = Game::new();
-        game2.play_str("3333")?;
+        game2.play_str("4444")?;
 
         assert_eq!(
             game1.player_board,
