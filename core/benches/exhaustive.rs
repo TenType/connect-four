@@ -13,6 +13,8 @@ const TEST_DATA: &[&str] = &[
     "begin_hard",
 ];
 
+const NUM_LINES: usize = 1000;
+
 const EDIT: &str = "\r";
 const PROGRESS_COLOR: &str = "\x1b[1;34m";
 const DONE_COLOR: &str = "\x1b[1;32m";
@@ -56,23 +58,20 @@ struct BenchTimes {
 }
 
 fn bench_file(file_name: &str) -> BenchTimes {
-    let path = format!("./test_data/{file_name}.txt");
+    let path = format!("./test_data/{file_name}.csv");
 
-    let file = File::open(path.clone()).unwrap();
-    let reader = BufReader::new(file);
-    let line_count = reader.lines().count();
-
-    let mut times = [Duration::ZERO; 1000];
+    let mut times = [Duration::ZERO; NUM_LINES];
 
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
     let mut engine = Engine::new();
 
-    for (i, line) in reader.lines().enumerate() {
+    // Benchmark each line, skipping the header
+    for (i, line) in reader.lines().skip(1).enumerate() {
         times[i] = bench_line(line.unwrap(), &mut engine);
 
-        let percent_complete: f64 = (i as f64 / line_count as f64 * 100.0).floor();
-        print!("{EDIT}{PROGRESS_COLOR}{file_name:>15}{RESET} Running {i}/{line_count} {BOLD}({percent_complete}%){RESET}");
+        let percent_complete: f64 = (i as f64 / NUM_LINES as f64 * 100.0).floor();
+        print!("{EDIT}{PROGRESS_COLOR}{file_name:>15}{RESET} Running {i}/{NUM_LINES} {BOLD}({percent_complete}%){RESET}");
         stdout().flush().unwrap();
     }
 
@@ -80,16 +79,16 @@ fn bench_file(file_name: &str) -> BenchTimes {
 
     BenchTimes {
         lower_bound: times[0],
-        median: times[times.len() / 2],
-        upper_bound: times[times.len() - 1],
+        median: times[NUM_LINES / 2],
+        upper_bound: times[NUM_LINES - 1],
     }
 }
 
 fn bench_line(line: String, engine: &mut Engine) -> Duration {
-    let items: Vec<&str> = line.split(' ').take(2).collect();
+    let items: Vec<&str> = line.split(',').collect();
 
     let [moves, expected] = items[..] else {
-        panic!("file line should have two strings separated by a space");
+        panic!("file line should have moves and score separated by a comma");
     };
 
     let expected: i8 = expected.parse().unwrap();

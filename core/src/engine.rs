@@ -184,21 +184,21 @@ mod tests {
     use std::io::{prelude::*, BufReader};
 
     fn test_file(file_name: &str) {
-        let path = format!("./test_data/{file_name}.txt");
+        let path = format!("./test_data/{file_name}.csv");
         let file = File::open(path).unwrap();
         let reader = BufReader::new(file);
         let mut engine = Engine::new();
 
-        for line in reader.lines() {
+        for line in reader.lines().skip(1) {
             test_line(line.unwrap(), &mut engine);
         }
     }
 
     fn test_line(line: String, engine: &mut Engine) {
-        let items: Vec<&str> = line.split(' ').take(2).collect();
+        let items: Vec<&str> = line.split(',').collect();
 
         let [moves, expected] = items[..] else {
-            panic!("file line should have two strings separated by a space");
+            panic!("file line should have moves and score separated by a comma");
         };
 
         let expected: i8 = expected.parse().unwrap();
