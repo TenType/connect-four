@@ -109,7 +109,7 @@ impl Engine {
     /// use connect_four_engine::{Game, Engine};
     ///
     /// let mut game = Game::new();
-    /// game.play_slice(&[2, 1, 0, 5, 3, 5, 1, 4])?;
+    /// game.play_str("32164625")?;
     ///
     /// let mut engine = Engine::new();
     /// let score = engine.evaluate(game);

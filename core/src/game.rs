@@ -691,7 +691,7 @@ impl Game {
     /// ```
     /// # use connect_four_engine::Game;
     /// # let mut game = Game::new();
-    /// # game.play_slice(&[0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 4, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6])?;
+    /// # game.play_str("111112222233333144444255555376666667777754")?;
     /// # let x = 0;
     /// # let y = 5;
     /// let a = game.board()[y][x];
@@ -798,7 +798,7 @@ mod tests {
     #[test]
     fn full_column() {
         let mut game = Game::new();
-        let result = game.play_slice(&[0, 0, 0, 0, 0, 0, 0]);
+        let result = game.play_str("1111111");
         assert_eq!(result, Err(Error::ColumnFull));
     }
 
@@ -811,7 +811,7 @@ mod tests {
         // X O O _ _ _ _
         // X O O _ _ _ _
         let mut game = Game::new();
-        game.play_slice(&[0, 1, 0, 1, 0, 1, 1, 2, 1, 2, 1])?;
+        game.play_str("12121223232")?;
 
         assert!(!game.is_game_over());
         assert_eq!(game.status(), Status::Ongoing);
@@ -821,20 +821,18 @@ mod tests {
     }
 
     fn test_end_game(
-        moves: &[u8],
+        moves: &str,
         status: Status,
         win_coords: Option<[(u8, u8); 4]>,
     ) -> Result<(), Error> {
-        let Some((last, primary)) = moves.split_last() else {
-            panic!("moves slice should have more than 1 move");
-        };
+        let (first, last) = moves.split_at(moves.len() - 1);
 
         let mut game = Game::new();
-        game.play_slice(primary)?;
+        game.play_str(first)?;
         assert!(!game.is_game_over());
         assert_eq!(game.status(), Status::Ongoing);
 
-        game.play(*last)?;
+        game.play_str(last)?;
         assert!(game.is_game_over());
         assert_eq!(game.status(), status);
         assert_eq!(game.winning_coordinates(), win_coords);
@@ -851,7 +849,7 @@ mod tests {
         // O O O _ _ _ _
         // X X X X _ _ _
         test_end_game(
-            &[0, 0, 1, 1, 2, 2, 3],
+            "1122334",
             Status::Win(Player::P1),
             Some([(0, 0), (1, 0), (2, 0), (3, 0)]),
         )
@@ -866,7 +864,7 @@ mod tests {
         // X O _ _ _ _ _
         // X O _ _ _ _ _
         test_end_game(
-            &[0, 1, 0, 1, 0, 1, 0],
+            "1212121",
             Status::Win(Player::P1),
             Some([(0, 0), (0, 1), (0, 2), (0, 3)]),
         )
@@ -881,7 +879,7 @@ mod tests {
         // _ O X O _ _ _
         // O X X X _ _ _
         test_end_game(
-            &[3, 0, 1, 1, 2, 3, 2, 2, 3, 3],
+            "4122343344",
             Status::Win(Player::P2),
             Some([(0, 0), (1, 1), (2, 2), (3, 3)]),
         )
@@ -896,7 +894,7 @@ mod tests {
         // _ _ _ O X O _
         // _ _ _ X X X O
         test_end_game(
-            &[3, 6, 5, 5, 4, 3, 4, 4, 3, 3],
+            "4766545544",
             Status::Win(Player::P2),
             Some([(3, 3), (4, 2), (5, 1), (6, 0)]),
         )
@@ -911,10 +909,7 @@ mod tests {
         // O X O X O X O
         // X O O X O O X
         test_end_game(
-            &[
-                0, 1, 1, 5, 6, 0, 5, 6, 3, 6, 6, 0, 0, 1, 1, 5, 5, 2, 3, 4, 3, 2, 2, 4, 4, 0, 2, 6,
-                4, 1, 3,
-            ],
+            "1226716747711226634543355137524",
             Status::Win(Player::P1),
             // currently chooses ascending diagonal over other directions, but the implementation is subject to change in the future
             Some([(0, 0), (1, 1), (2, 2), (3, 3)]),
@@ -930,10 +925,7 @@ mod tests {
         // O X O O O X O
         // X O X X X O X
         test_end_game(
-            &[
-                0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 0, 3, 3, 3, 3, 3, 1, 4, 4, 4, 4, 4, 2,
-                6, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 4, 3,
-            ],
+            "111112222233333144444255555376666667777754",
             Status::Win(Player::P2),
             Some([(0, 5), (1, 5), (2, 5), (3, 5)]),
         )
@@ -948,10 +940,7 @@ mod tests {
         // O O O X O O O
         // X X X O X X X
         test_end_game(
-            &[
-                0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 4, 3, 3, 3, 3, 3, 3, 4, 4, 4,
-                4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6,
-            ],
+            "111111222222333333544444455555666666777777",
             Status::Draw,
             None,
         )
@@ -966,9 +955,7 @@ mod tests {
         // _ _ X X O O X
         // _ X O O X X O
         let mut game = Game::new();
-        game.play_slice(&[
-            1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6,
-        ])?;
+        game.play_str("233444555566666777777")?;
 
         assert_eq!(game.to_string(), "_ _ _ _ _ _ X\n_ _ _ _ _ X O\n_ _ _ _ O O X\n_ _ _ O X X O\n_ _ X X O O X\n_ X O O X X O");
         Ok(())
