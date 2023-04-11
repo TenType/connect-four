@@ -301,7 +301,7 @@ impl Game {
     }
 
     /// Checks if the game has ended with a winner.
-    fn has_won(&self) -> bool {
+    pub(crate) fn has_won(&self) -> bool {
         self.winner().is_some()
     }
 

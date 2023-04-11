@@ -90,9 +90,9 @@ impl Engine {
     }
 
     /// Creates a new engine with an opening book.
-    pub fn with_opening_book(opening_cache: Cache) -> Self {
+    pub fn with_opening_book(opening_book: Cache) -> Self {
         Self {
-            opening_book: opening_cache,
+            opening_book,
             ..Self::default()
         }
     }
@@ -102,7 +102,7 @@ impl Engine {
         self.node_count
     }
 
-    /// Evaluates a game position.
+    /// Evaluates a game position, returning its score.
     ///
     /// # Examples
     /// ```
@@ -118,7 +118,46 @@ impl Engine {
     /// ```
     pub fn evaluate(&mut self, game: Game) -> i8 {
         self.node_count = 0;
+        self.solve(game)
+    }
 
+    /// Evaluates all the possible moves of a game position, returning the scores as an array.
+    /// An element of the array is [`None`] if the move cannot be played.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::{Game, Engine};
+    ///
+    /// let mut game = Game::new();
+    /// game.play_str("662222576343651642712157")?;
+    ///
+    /// let mut engine = Engine::new();
+    /// let scores = engine.evaluate_next(game);
+    /// assert_eq!(scores, [Some(1), None, Some(-8), Some(8), Some(3), Some(1), Some(7)]);
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
+    pub fn evaluate_next(&mut self, game: Game) -> [Option<i8>; WIDTH as usize] {
+        self.node_count = 0;
+
+        let mut scores = [None; WIDTH as usize];
+
+        for col in 0..WIDTH {
+            if game.is_unfilled(col) {
+                let mut new_game = game;
+                new_game.play_unchecked(col);
+                if new_game.has_won() {
+                    scores[col as usize] = Some(new_game.position_score());
+                } else {
+                    scores[col as usize] = Some(-self.solve(new_game));
+                }
+            }
+        }
+
+        scores
+    }
+
+    /// Entry function to solve a game.
+    fn solve(&mut self, game: Game) -> i8 {
         if game.can_win_next() {
             return game.position_score();
         }

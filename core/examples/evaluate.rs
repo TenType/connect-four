@@ -49,5 +49,15 @@ fn main() {
             engine.node_count(),
             engine.tt_cache.len(),
         );
+
+        let now = Instant::now();
+        let scores = engine.evaluate_next(game);
+        let time = now.elapsed();
+
+        println!(
+            "Next: {scores:?} in {time:.3?} with {} nodes ({} in tt_cache)",
+            engine.node_count(),
+            engine.tt_cache.len(),
+        );
     }
 }
