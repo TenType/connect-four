@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 import argparse
-import json
 import struct
+
+BUFFER_DELIMIT = 1
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('path', help='file path to the opening book')
     parser.add_argument('--max', type=int,
                         help='maximum number of iterations')
-    parser.add_argument('--output', default='cache.json',
+    parser.add_argument('--output', default='opening_book.bin',
                         help='specify output file')
 
     args = parser.parse_args()
@@ -33,16 +34,20 @@ def main():
     assert size == len(values), len(keys)
 
     # Add relevant keys and values to cache
-    cache = {}
+    cache = [[] for _ in range(0, 37)]
     for i, (key, value) in enumerate(zip(keys, values)):
         if key == (i & 0xFF) and value != 0:
-            cache[i] = value - 19
+            cache[value - 1].append(i)
         if args.max is not None and i > args.max:
             break
 
-    # Write json file
-    with open(args.output, 'w+') as file:
-        json.dump(cache, file)
+    # Write file
+    with open(args.output, 'wb+') as file:
+        file.write(struct.pack(f'<B', max_depth))
+        for moves in cache:
+            packed = struct.pack(f'<{len(moves) + 1}I', *moves, BUFFER_DELIMIT)
+            file.write(packed)
+
 
 def next_prime(n):
     size = 2 ** n
