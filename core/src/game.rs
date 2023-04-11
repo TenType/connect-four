@@ -547,7 +547,7 @@ impl Game {
     }
 
     /// Returns a symmetric base 3 key for the current game state.
-    pub fn key3(&self) -> u64 {
+    pub fn key3(&self) -> u128 {
         let key_forward = (0..WIDTH).fold(0, |key, col| self.partial_key3(key, col));
 
         let key_backward = (0..WIDTH)
@@ -561,7 +561,7 @@ impl Game {
         }
     }
 
-    fn partial_key3(&self, mut key: u64, col: u8) -> u64 {
+    fn partial_key3(&self, mut key: u128, col: u8) -> u128 {
         let mut mask = bitboard::bottom_piece_mask(col);
         while (self.pieces_board & mask) != 0 {
             key *= 3;

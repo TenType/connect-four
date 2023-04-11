@@ -3,16 +3,16 @@
 mod bitboard;
 
 mod error;
-pub use error::Error;
+pub use error::*;
 
-pub mod game;
-pub use game::{Game, Status};
+mod game;
+pub use game::*;
 
-pub mod engine;
-pub use engine::Engine;
+mod engine;
+pub use engine::*;
 
 mod cache;
-pub use cache::Cache;
+pub use cache::*;
 
 /// The number of rows in a standard board.
 pub const HEIGHT: u8 = 6;

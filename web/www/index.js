@@ -1,36 +1,44 @@
-import init, { Game } from '../pkg/connect_four_website.js';
+import init, { App } from '../pkg/connect_four_website.js';
 
 const board = document.getElementById('board');
 const WIDTH = 7;
 const HEIGHT = 6;
 
-init().then(() => {
-  const game = new Game();
-  setup(game);
+init().then(async () => {
+  const bytes = await loadOpeningBook();
+  const app = new App(bytes);
+  setup(app);
+  console.log(app.evaluate());
 });
 
+async function loadOpeningBook() {
+  const file = await fetch('../../database/opening_book.bin');
+  const buffer = await file.arrayBuffer();
+  return new Uint8Array(buffer);
+}
+
 /**
- * @param {Game} game
+ * @param {App} app
  */
-function setup(game) {
+function setup(app) {
   for (let row = 0; row < HEIGHT; row++) {
     for (let col = 0; col < WIDTH; col++) {
       const tile = document.createElement('div');
       tile.classList.add('tile');
       board.appendChild(tile);
-      tile.onclick = () => makeMove(game, col);
+      tile.onclick = () => makeMove(app, col);
     }
   }
 }
 
 /**
- * @param {Game} game
+ * @param {App} app
  * @param {number} col
  */
-function makeMove(game, col) {
-  if (game.is_game_over()) return;
+function makeMove(app, col) {
+  if (app.is_game_over()) return;
 
-  const row = HEIGHT - game.play(col) - 1;
+  const row = HEIGHT - app.play(col) - 1;
   if (row < 0) {
     // Move cannot be played
     return;
@@ -39,7 +47,7 @@ function makeMove(game, col) {
   const piece = document.createElement('div');
   piece.classList.add('piece');
 
-  if (game.first_player_turn()) {
+  if (!app.first_player_turn()) {
     piece.dataset.color = 'red';
   } else {
     piece.dataset.color = 'yellow';
@@ -66,10 +74,12 @@ function makeMove(game, col) {
     500
   );
 
-  const winner = game.winner();
+  const winner = app.winner();
   if (winner != 0) {
     animation.onfinish = () => alert(`Player ${winner} won!`);
-  } else if (game.is_draw()) {
-    animation.onfinish = () => alert('The game is a draw!');
+  } else if (app.is_draw()) {
+    animation.onfinish = () => alert('The app is a draw!');
+  } else {
+    console.log(app.evaluate());
   }
 }

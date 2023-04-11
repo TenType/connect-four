@@ -77,14 +77,24 @@ impl Iterator for MoveSorter {
 pub struct Engine {
     /// The number of nodes visited.
     node_count: u64,
+    /// An opening book used to cache the scores of opening positions.
+    pub opening_book: Cache,
     /// A transposition table used to cache the scores of previously-computed positions.
-    pub cache: Cache,
+    pub tt_cache: Cache,
 }
 
 impl Engine {
     /// Creates a new engine with empty cache.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Creates a new engine with an opening book.
+    pub fn with_opening_book(opening_cache: Cache) -> Self {
+        Self {
+            opening_book: opening_cache,
+            ..Self::default()
+        }
     }
 
     /// Returns the number of nodes visited in the last evaluation.
@@ -111,6 +121,14 @@ impl Engine {
 
         if game.can_win_next() {
             return game.position_score();
+        }
+
+        if game.moves() <= self.opening_book.max_depth() {
+            if let Ok(key3) = game.key3().try_into() {
+                if let Some(score) = self.opening_book.get(&key3) {
+                    return score;
+                }
+            }
         }
 
         let mut max = game.position_score();
@@ -153,7 +171,7 @@ impl Engine {
             return min;
         }
 
-        let max = self.cache.get(&game.key()).unwrap_or(-min + 1);
+        let max = self.tt_cache.get(&game.key()).unwrap_or(-min + 1);
         if alpha >= max {
             return max;
         }
@@ -176,7 +194,7 @@ impl Engine {
                 return score;
             }
         }
-        self.cache.insert(game.key(), alpha);
+        self.tt_cache.insert(game.key(), alpha);
         alpha
     }
 }
