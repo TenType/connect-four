@@ -452,6 +452,12 @@ impl Game {
         self.winning_board(self.player_board) & self.possible_moves() != 0
     }
 
+    /// Checks whether the current player can win by playing into a 0-indexed column.
+    pub(crate) fn is_winning_move(&self, col: u8) -> bool {
+        self.winning_board(self.player_board) & self.possible_moves() & bitboard::column_mask(col)
+            != 0
+    }
+
     /// Returns the number of winning moves the current player has after playing a given move.
     pub(crate) fn count_winning_moves(&self, move_board: u64) -> u32 {
         self.winning_board(self.player_board | move_board)
@@ -513,8 +519,12 @@ impl Game {
         self.moves
     }
 
-    pub(crate) fn position_score(&self) -> i8 {
-        ((AREA - self.moves()) as i8) / 2
+    pub(crate) fn position_score(&self, win_this_turn: bool) -> i8 {
+        if win_this_turn {
+            ((AREA - self.moves()) as i8 + 1) / 2
+        } else {
+            ((AREA - self.moves()) as i8) / 2
+        }
     }
 
     /// Returns the [`Player`] whose turn it currently is.

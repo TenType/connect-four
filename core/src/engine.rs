@@ -129,11 +129,11 @@ impl Engine {
     /// use connect_four_engine::{Game, Engine};
     ///
     /// let mut game = Game::new();
-    /// game.play_str("662222576343651642712157")?;
+    /// game.play_str("4444413222453233535")?;
     ///
     /// let mut engine = Engine::new();
     /// let scores = engine.evaluate_next(game);
-    /// assert_eq!(scores, [Some(1), None, Some(-8), Some(8), Some(3), Some(1), Some(7)]);
+    /// assert_eq!(scores, [Some(-3), Some(11), Some(-2), None, Some(12), Some(-3), Some(-3)]);
     /// # Ok::<(), connect_four_engine::Error>(())
     /// ```
     pub fn evaluate_next(&mut self, game: Game) -> [Option<i8>; WIDTH as usize] {
@@ -143,11 +143,11 @@ impl Engine {
 
         for col in 0..WIDTH {
             if game.is_unfilled(col) {
-                let mut new_game = game;
-                new_game.play_unchecked(col);
-                if new_game.has_won() {
-                    scores[col as usize] = Some(new_game.position_score());
+                if game.is_winning_move(col) {
+                    scores[col as usize] = Some(game.position_score(true));
                 } else {
+                    let mut new_game = game;
+                    new_game.play_unchecked(col);
                     scores[col as usize] = Some(-self.solve(new_game));
                 }
             }
@@ -159,7 +159,7 @@ impl Engine {
     /// Entry function to solve a game.
     fn solve(&mut self, game: Game) -> i8 {
         if game.can_win_next() {
-            return game.position_score();
+            return game.position_score(true);
         }
 
         if game.moves() <= self.opening_book.max_depth() {
@@ -170,7 +170,7 @@ impl Engine {
             }
         }
 
-        let mut max = game.position_score();
+        let mut max = game.position_score(false);
         let mut min = -max;
 
         while min < max {
@@ -202,10 +202,10 @@ impl Engine {
 
         let non_losing_moves = game.non_losing_moves();
         if non_losing_moves == 0 {
-            return -game.position_score();
+            return -game.position_score(false);
         }
 
-        let min = -game.position_score() + 1;
+        let min = -game.position_score(false) + 1;
         if min >= beta {
             return min;
         }
@@ -240,6 +240,8 @@ impl Engine {
 
 #[cfg(test)]
 mod tests {
+    use crate::Error;
+
     use super::*;
     use std::fs::File;
     use std::io::{prelude::*, BufReader};
@@ -311,7 +313,17 @@ mod tests {
     }
 
     #[test]
-    fn last_move() {
-        assert_eval(&mut Engine::new(), "112233", 18);
+    fn last_move() -> Result<(), Error> {
+        let mut game = Game::new();
+        game.play_str("112233")?;
+
+        let mut engine = Engine::new();
+        assert_eq!(engine.evaluate(game), 18);
+        assert_eq!(
+            engine.evaluate_next(game),
+            [-2, -1, -1, 18, -2, -2, -3].map(Some)
+        );
+
+        Ok(())
     }
 }
