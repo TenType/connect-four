@@ -1,7 +1,7 @@
 //! Functionality for creating and playing the game of Connect Four.
 
 use crate::{bitboard, Error, Player, AREA, HEIGHT, NUM_PLAYERS, WIDTH};
-use std::{array, collections::HashSet, fmt};
+use std::{array, collections::HashSet, fmt, str::FromStr};
 
 /// Represents the state of a game.
 #[derive(Debug, PartialEq, Eq)]
@@ -42,6 +42,28 @@ impl Game {
     /// ```
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Creates a new game from a string of 1-indexed columns.
+    ///
+    /// # Errors
+    /// Returns an [`Error`] if any move cannot be played.
+    ///
+    /// # Panics
+    /// Panics if the string is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::Game;
+    /// let game = Game::from_str("32164625")?;
+    /// # Ok::<(), connect_four_engine::Error>(())
+    /// ```
+    #[allow(clippy::should_implement_trait)]
+    // Implemented here so FromStr does not have to be imported to use directly
+    pub fn from_str(s: &str) -> Result<Self, Error> {
+        let mut game = Self::new();
+        game.play_str(s)?;
+        Ok(game)
     }
 
     /// Plays the current player's piece in the given 0-indexed column, returning the row number of the piece.
@@ -700,8 +722,7 @@ impl Game {
     /// The 2D array is in row-major order:
     /// ```
     /// # use connect_four_engine::Game;
-    /// # let mut game = Game::new();
-    /// # game.play_str("111112222233333144444255555376666667777754")?;
+    /// # let game = Game::from_str("111112222233333144444255555376666667777754")?;
     /// # let x = 0;
     /// # let y = 5;
     /// let a = game.board()[y][x];
@@ -715,6 +736,14 @@ impl Game {
         array::from_fn(|y| {
             array::from_fn(|x| self.at(x.try_into().unwrap(), y.try_into().unwrap()))
         })
+    }
+}
+
+impl FromStr for Game {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_str(s)
     }
 }
 
@@ -820,8 +849,7 @@ mod tests {
         // X O _ _ _ _ _
         // X O O _ _ _ _
         // X O O _ _ _ _
-        let mut game = Game::new();
-        game.play_str("12121223232")?;
+        let mut game = Game::from_str("12121223232")?;
 
         assert!(!game.is_game_over());
         assert_eq!(game.status(), Status::Ongoing);
@@ -837,8 +865,7 @@ mod tests {
     ) -> Result<(), Error> {
         let (first, last) = moves.split_at(moves.len() - 1);
 
-        let mut game = Game::new();
-        game.play_str(first)?;
+        let mut game = Game::from_str(first)?;
         assert!(!game.is_game_over());
         assert_eq!(game.status(), Status::Ongoing);
 
@@ -964,8 +991,7 @@ mod tests {
         // _ _ _ O X X O
         // _ _ X X O O X
         // _ X O O X X O
-        let mut game = Game::new();
-        game.play_str("233444555566666777777")?;
+        let game = Game::from_str("233444555566666777777")?;
 
         assert_eq!(game.to_string(), "_ _ _ _ _ _ X\n_ _ _ _ _ X O\n_ _ _ _ O O X\n_ _ _ O X X O\n_ _ X X O O X\n_ X O O X X O");
         Ok(())

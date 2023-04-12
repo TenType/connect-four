@@ -106,12 +106,11 @@ impl Engine {
     ///
     /// # Examples
     /// ```
-    /// use connect_four_engine::{Game, Engine};
+    /// use connect_four_engine::{Engine, Game};
     ///
-    /// let mut game = Game::new();
-    /// game.play_str("32164625")?;
-    ///
+    /// let game = Game::from_str("32164625")?;
     /// let mut engine = Engine::new();
+    ///
     /// let score = engine.evaluate(game);
     /// assert_eq!(score, 11);
     /// # Ok::<(), connect_four_engine::Error>(())
@@ -126,12 +125,11 @@ impl Engine {
     ///
     /// # Examples
     /// ```
-    /// use connect_four_engine::{Game, Engine};
+    /// use connect_four_engine::{Engine, Game};
     ///
-    /// let mut game = Game::new();
-    /// game.play_str("4444413222453233535")?;
-    ///
+    /// let game = Game::from_str("4444413222453233535")?;
     /// let mut engine = Engine::new();
+    ///
     /// let scores = engine.evaluate_next(game);
     /// assert_eq!(scores, [Some(-3), Some(11), Some(-2), None, Some(12), Some(-3), Some(-3)]);
     /// # Ok::<(), connect_four_engine::Error>(())
@@ -269,9 +267,7 @@ mod tests {
     }
 
     fn assert_eval(engine: &mut Engine, moves: &str, expected: i8) {
-        let mut game = Game::new();
-        game.play_str(moves).expect("invalid move string");
-
+        let game = Game::from_str(moves).expect("move string should be valid");
         let actual = engine.evaluate(game);
 
         assert_eq!(
@@ -314,10 +310,9 @@ mod tests {
 
     #[test]
     fn last_move() -> Result<(), Error> {
-        let mut game = Game::new();
-        game.play_str("112233")?;
-
+        let game = Game::from_str("112233")?;
         let mut engine = Engine::new();
+
         assert_eq!(engine.evaluate(game), 18);
         assert_eq!(
             engine.evaluate_next(game),

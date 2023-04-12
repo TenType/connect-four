@@ -93,8 +93,7 @@ fn bench_line(line: String, engine: &mut Engine) -> Duration {
 
     let expected: i8 = expected.parse().unwrap();
 
-    let mut game = Game::new();
-    game.play_str(moves).expect("invalid move string");
+    let game = Game::from_str(moves).expect("move string should be valid");
 
     let now = Instant::now();
     let actual = engine.evaluate(game);
