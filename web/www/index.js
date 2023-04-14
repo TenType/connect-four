@@ -78,7 +78,7 @@ function makeMove(app, col) {
   if (winner != 0) {
     animation.onfinish = () => alert(`Player ${winner} won!`);
   } else if (app.is_draw()) {
-    animation.onfinish = () => alert('The app is a draw!');
+    animation.onfinish = () => alert('The game is a draw!');
   } else {
     console.log(app.evaluate());
   }

@@ -26,11 +26,13 @@ impl App {
     }
 
     pub fn play(&mut self, col: u8) -> u8 {
-        self.game.play(col).unwrap_or(u8::MAX)
+        let row = self.game.can_play(col).unwrap_or(u8::MAX);
+        let _ = self.game.play(col);
+        row
     }
 
     pub fn is_game_over(&self) -> bool {
-        self.game.is_game_over()
+        self.game.is_over()
     }
 
     pub fn first_player_turn(&self) -> bool {
@@ -38,10 +40,10 @@ impl App {
     }
 
     pub fn winner(&self) -> u8 {
-        match self.game.winner() {
-            None => 0,
-            Some(Player::P1) => 1,
-            Some(Player::P2) => 2,
+        match self.game.status() {
+            Status::Win(Player::P1) => 1,
+            Status::Win(Player::P2) => 2,
+            _ => 0,
         }
     }
 
@@ -50,6 +52,6 @@ impl App {
     }
 
     pub fn evaluate(&mut self) -> i8 {
-        self.engine.evaluate(self.game)
+        self.engine.evaluate(&self.game)
     }
 }

@@ -8,7 +8,7 @@
 //! * A negative score signifies that the current player will lose.
 //!   * A position has the score of -1 if the player loses with their last piece, -2 if the player loses with their second to last piece, etc.
 
-use crate::{bitboard, Cache, Game, AREA, WIDTH};
+use crate::{bitboard, Board, Cache, Game, AREA, WIDTH};
 
 /// The minimum possible score of a game position.
 pub const MIN_SCORE: i8 = -MAX_SCORE;
@@ -111,13 +111,13 @@ impl Engine {
     /// let game = Game::from_str("32164625")?;
     /// let mut engine = Engine::new();
     ///
-    /// let score = engine.evaluate(game);
+    /// let score = engine.evaluate(&game);
     /// assert_eq!(score, 11);
-    /// # Ok::<(), connect_four_engine::Error>(())
+    /// # Ok::<(), connect_four_engine::MoveError>(())
     /// ```
-    pub fn evaluate(&mut self, game: Game) -> i8 {
+    pub fn evaluate(&mut self, game: &Game) -> i8 {
         self.node_count = 0;
-        self.solve(game)
+        self.solve(game.into())
     }
 
     /// Evaluates all the possible moves of a game position, returning the scores as an array.
@@ -130,23 +130,24 @@ impl Engine {
     /// let game = Game::from_str("4444413222453233535")?;
     /// let mut engine = Engine::new();
     ///
-    /// let scores = engine.evaluate_next(game);
+    /// let scores = engine.evaluate_next(&game);
     /// assert_eq!(scores, [Some(-3), Some(11), Some(-2), None, Some(12), Some(-3), Some(-3)]);
-    /// # Ok::<(), connect_four_engine::Error>(())
+    /// # Ok::<(), connect_four_engine::MoveError>(())
     /// ```
-    pub fn evaluate_next(&mut self, game: Game) -> [Option<i8>; WIDTH as usize] {
+    pub fn evaluate_next(&mut self, game: &Game) -> [Option<i8>; WIDTH as usize] {
         self.node_count = 0;
 
         let mut scores = [None; WIDTH as usize];
+        let board = Board::from(game);
 
         for col in 0..WIDTH {
-            if game.is_unfilled(col) {
-                if game.is_winning_move(col) {
-                    scores[col as usize] = Some(game.position_score(true));
+            if board.is_open(col) {
+                if board.is_winning_move(col) {
+                    scores[col as usize] = Some(board.position_score(true));
                 } else {
-                    let mut new_game = game;
-                    new_game.play_unchecked(col);
-                    scores[col as usize] = Some(-self.solve(new_game));
+                    let mut new_board = board;
+                    new_board.play_unchecked(col);
+                    scores[col as usize] = Some(-self.solve(new_board));
                 }
             }
         }
@@ -154,21 +155,21 @@ impl Engine {
         scores
     }
 
-    /// Entry function to solve a game.
-    fn solve(&mut self, game: Game) -> i8 {
-        if game.can_win_next() {
-            return game.position_score(true);
+    /// Entry function to solve a board.
+    fn solve(&mut self, board: Board) -> i8 {
+        if board.can_win_next() {
+            return board.position_score(true);
         }
 
-        if game.moves() <= self.opening_book.max_depth() {
-            if let Ok(key3) = game.key3().try_into() {
+        if board.num_moves() <= self.opening_book.max_depth() {
+            if let Ok(key3) = board.key3().try_into() {
                 if let Some(score) = self.opening_book.get(&key3) {
                     return score;
                 }
             }
         }
 
-        let mut max = game.position_score(false);
+        let mut max = board.position_score(false);
         let mut min = -max;
 
         while min < max {
@@ -179,7 +180,7 @@ impl Engine {
                 midpoint = max / 2;
             }
 
-            let score = self.negamax(game, midpoint, midpoint + 1);
+            let score = self.negamax(board, midpoint, midpoint + 1);
 
             if score <= midpoint {
                 max = score;
@@ -191,24 +192,24 @@ impl Engine {
     }
 
     /// Recursively solves a game using the negamax search algorithm, returning its score.
-    fn negamax(&mut self, game: Game, alpha: i8, beta: i8) -> i8 {
+    fn negamax(&mut self, board: Board, alpha: i8, beta: i8) -> i8 {
         self.node_count += 1;
 
-        if game.has_full_board() {
+        if board.is_full() {
             return 0;
         }
 
-        let non_losing_moves = game.non_losing_moves();
+        let non_losing_moves = board.non_losing_moves_bb();
         if non_losing_moves == 0 {
-            return -game.position_score(false);
+            return -board.position_score(false);
         }
 
-        let min = -game.position_score(false) + 1;
+        let min = -board.position_score(false) + 1;
         if min >= beta {
             return min;
         }
 
-        let max = self.tt_cache.get(&game.key()).unwrap_or(-min + 1);
+        let max = self.tt_cache.get(&board.key()).unwrap_or(-min + 1);
         if alpha >= max {
             return max;
         }
@@ -218,27 +219,27 @@ impl Engine {
         for col in REV_MOVE_ORDER {
             let move_board = non_losing_moves & bitboard::column_mask(col);
             if move_board != 0 {
-                moves.insert(move_board, game.count_winning_moves(move_board));
+                moves.insert(move_board, board.count_winning_moves(move_board));
             }
         }
 
         for move_board in moves {
-            let mut new_game = game;
-            new_game.play_board(move_board);
+            let mut new_board = board;
+            new_board.play_bb(move_board);
 
-            let score = -self.negamax(new_game, -beta, -alpha);
+            let score = -self.negamax(new_board, -beta, -alpha);
             if score >= beta {
                 return score;
             }
         }
-        self.tt_cache.insert(game.key(), alpha);
+        self.tt_cache.insert(board.key(), alpha);
         alpha
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::Error;
+    use crate::MoveError;
 
     use super::*;
     use std::fs::File;
@@ -268,7 +269,7 @@ mod tests {
 
     fn assert_eval(engine: &mut Engine, moves: &str, expected: i8) {
         let game = Game::from_str(moves).expect("move string should be valid");
-        let actual = engine.evaluate(game);
+        let actual = engine.evaluate(&game);
 
         assert_eq!(
             expected, actual,
@@ -309,13 +310,13 @@ mod tests {
     }
 
     #[test]
-    fn last_move() -> Result<(), Error> {
+    fn last_move() -> Result<(), MoveError> {
         let game = Game::from_str("112233")?;
         let mut engine = Engine::new();
 
-        assert_eq!(engine.evaluate(game), 18);
+        assert_eq!(engine.evaluate(&game), 18);
         assert_eq!(
-            engine.evaluate_next(game),
+            engine.evaluate_next(&game),
             [-2, -1, -1, 18, -2, -2, -3].map(Some)
         );
 

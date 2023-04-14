@@ -41,7 +41,7 @@ fn main() {
         println!("{game}");
 
         let now = Instant::now();
-        let score = engine.evaluate(game);
+        let score = engine.evaluate(&game);
         let time = now.elapsed();
 
         println!(
@@ -51,7 +51,7 @@ fn main() {
         );
 
         let now = Instant::now();
-        let scores = engine.evaluate_next(game);
+        let scores = engine.evaluate_next(&game);
         let time = now.elapsed();
 
         println!(

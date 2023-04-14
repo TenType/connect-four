@@ -11,7 +11,10 @@ fn main() {
         io::stdout().flush().unwrap();
         io::stdin().read_line(&mut input).unwrap();
 
-        if let Err(e) = game.play_str(input.trim()) {
+        let input = input.trim();
+        if input == "u" || input == "undo" {
+            game.undo();
+        } else if let Err(e) = game.play_str(input) {
             eprintln!("{e}");
             continue;
         }

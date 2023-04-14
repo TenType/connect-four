@@ -96,7 +96,7 @@ fn bench_line(line: String, engine: &mut Engine) -> Duration {
     let game = Game::from_str(moves).expect("move string should be valid");
 
     let now = Instant::now();
-    let actual = engine.evaluate(game);
+    let actual = engine.evaluate(&game);
     let time = now.elapsed();
 
     assert_eq!(

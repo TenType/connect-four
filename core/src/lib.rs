@@ -2,6 +2,9 @@
 
 mod bitboard;
 
+mod board;
+use board::*;
+
 mod error;
 pub use error::*;
 
@@ -22,9 +25,6 @@ pub const WIDTH: u8 = 7;
 
 /// The number of tiles in a standard board.
 pub const AREA: u8 = WIDTH * HEIGHT;
-
-/// The number of players in a game.
-pub const NUM_PLAYERS: u8 = 2;
 
 /// Represents a single player.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
