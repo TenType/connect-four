@@ -1,4 +1,4 @@
-use connect_four_engine::{Game, Status};
+use connect_four_engine::{Game, Outcome};
 use std::io::{self, Write};
 
 fn main() {
@@ -21,11 +21,11 @@ fn main() {
 
         println!("{game}");
 
-        use Status::*;
-        match game.status() {
-            Win(player) => return println!("Player {:?} won!", player as u8 + 1),
-            Draw => return println!("Draw game!"),
-            Ongoing => (),
+        if let Some(outcome) = game.outcome() {
+            match outcome {
+                Outcome::Win(player) => return println!("Player {:?} won!", player as u8 + 1),
+                Outcome::Draw => return println!("Draw game!"),
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-use connect_four_engine::{Cache, Engine, Game, Player, Status};
+use connect_four_engine::{Cache, Engine, Game, Outcome, Player};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(start)]
@@ -40,15 +40,15 @@ impl App {
     }
 
     pub fn winner(&self) -> u8 {
-        match self.game.status() {
-            Status::Win(Player::P1) => 1,
-            Status::Win(Player::P2) => 2,
+        match self.game.outcome() {
+            Some(Outcome::Win(Player::P1)) => 1,
+            Some(Outcome::Win(Player::P2)) => 2,
             _ => 0,
         }
     }
 
     pub fn is_draw(&self) -> bool {
-        self.game.status() == Status::Draw
+        self.game.outcome() == Some(Outcome::Draw)
     }
 
     pub fn evaluate(&mut self) -> i8 {

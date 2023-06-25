@@ -1,17 +1,48 @@
 //! Functionality for creating and playing the game of Connect Four.
 
 use crate::{bitboard, Board, MoveError, Player, WinDirection, AREA, HEIGHT, WIDTH};
-use std::{array, collections::HashSet, fmt, str::FromStr};
+use std::{array, cmp::Ordering, collections::HashSet, fmt, str::FromStr};
 
-/// Represents the state of a game.
+/// Represents the end result of a game.
 #[derive(Debug, PartialEq, Eq)]
-pub enum Status {
+pub enum Outcome {
     /// The game has ended in a draw.
     Draw,
-    /// The game is still ongoing.
-    Ongoing,
     /// The game has ended with a winner represented by [`Player`].
     Win(Player),
+}
+
+impl Outcome {
+    /// Returns the outcome of a game position and the number of moves taken by both players until the game can end.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::{Outcome, Player, AREA, MIN_SCORE, MAX_SCORE};
+    ///
+    /// // Start of the game
+    /// assert_eq!(Outcome::from_score(1, Player::P1, 0), (Outcome::Win(Player::P1), AREA / 2));
+    /// assert_eq!(Outcome::from_score(-1, Player::P1, 0), (Outcome::Win(Player::P2), AREA / 2));
+    /// assert_eq!(Outcome::from_score(0, Player::P1, 0), (Outcome::Draw, AREA / 2));
+    ///
+    /// // Game can end in 1 turn
+    /// assert_eq!(Outcome::from_score(MAX_SCORE, Player::P1, 6), (Outcome::Win(Player::P1), 1));
+    /// assert_eq!(Outcome::from_score(MIN_SCORE, Player::P1, 6), (Outcome::Win(Player::P2), 1));
+    /// assert_eq!(Outcome::from_score(0, Player::P1, AREA - 1), (Outcome::Draw, 1));
+    /// ```
+    pub fn from_score(score: i8, player: Player, num_moves: u8) -> (Self, u8) {
+        let moves_left = AREA - num_moves;
+        match score.cmp(&0) {
+            Ordering::Less => (
+                Self::Win(!player),
+                moves_left / 2 + 1 - score.unsigned_abs(),
+            ),
+            Ordering::Equal => (Self::Draw, (moves_left + 1) / 2),
+            Ordering::Greater => (
+                Self::Win(player),
+                (moves_left + 1) / 2 + 1 - score.unsigned_abs(),
+            ),
+        }
+    }
 }
 
 /// Represents a Connect Four game.
@@ -272,29 +303,29 @@ impl Game {
         s
     }
 
-    /// Returns a [`Status`] representing the current state of the game.
+    /// Returns an [`Outcome`] representing the end result of the game or [`None`] if the game is ongoing.
     ///
     /// # Examples
     /// ```
-    /// use connect_four_engine::{Game, Player, Status};
+    /// use connect_four_engine::{Game, Player, Outcome};
     ///
     /// let mut game = Game::new();
-    /// assert_eq!(game.status(), Status::Ongoing);
+    /// assert_eq!(game.outcome(), None);
     ///
     /// game.play(3)?;
-    /// assert_eq!(game.status(), Status::Ongoing);
+    /// assert_eq!(game.outcome(), None);
     ///
     /// game.play_slice(&[2, 3, 2, 3, 2, 3])?;
-    /// assert_eq!(game.status(), Status::Win(Player::P1));
+    /// assert_eq!(game.outcome(), Some(Outcome::Win(Player::P1)));
     /// # Ok::<(), connect_four_engine::MoveError>(())
     /// ```
-    pub fn status(&self) -> Status {
+    pub fn outcome(&self) -> Option<Outcome> {
         if self.board.has_opponent_won() {
-            Status::Win(!self.turn())
+            Some(Outcome::Win(!self.turn()))
         } else if self.board.is_full() {
-            Status::Draw
+            Some(Outcome::Draw)
         } else {
-            Status::Ongoing
+            None
         }
     }
 
@@ -549,7 +580,7 @@ mod tests {
         assert_eq!(game.board.occupied_bb(), 0);
         assert_eq!(game.num_moves(), 0);
         assert!(!game.is_over());
-        assert_eq!(game.status(), Status::Ongoing);
+        assert_eq!(game.outcome(), None);
     }
 
     #[test]
@@ -614,25 +645,25 @@ mod tests {
         let game = Game::from_str("12121223232")?;
 
         assert!(!game.is_over());
-        assert_eq!(game.status(), Status::Ongoing);
+        assert_eq!(game.outcome(), None);
         assert_eq!(game.win_coords(), None);
         Ok(())
     }
 
     fn test_end_game(
         moves: &str,
-        status: Status,
+        outcome: Outcome,
         win_coords: Option<[(u8, u8); 4]>,
     ) -> Result<(), MoveError> {
         let (first, last) = moves.split_at(moves.len() - 1);
 
         let mut game = Game::from_str(first)?;
         assert!(!game.is_over());
-        assert_eq!(game.status(), Status::Ongoing);
+        assert_eq!(game.outcome(), None);
 
         game.play_str(last)?;
         assert!(game.is_over());
-        assert_eq!(game.status(), status);
+        assert_eq!(game.outcome(), Some(outcome));
         assert_eq!(game.win_coords(), win_coords);
         assert_eq!(game.play(0), Err(MoveError::GameOver));
         Ok(())
@@ -648,7 +679,7 @@ mod tests {
         // X X X X _ _ _
         test_end_game(
             "1122334",
-            Status::Win(Player::P1),
+            Outcome::Win(Player::P1),
             Some([(0, 0), (1, 0), (2, 0), (3, 0)]),
         )
     }
@@ -663,7 +694,7 @@ mod tests {
         // X O _ _ _ _ _
         test_end_game(
             "1212121",
-            Status::Win(Player::P1),
+            Outcome::Win(Player::P1),
             Some([(0, 0), (0, 1), (0, 2), (0, 3)]),
         )
     }
@@ -678,7 +709,7 @@ mod tests {
         // O X X X _ _ _
         test_end_game(
             "4122343344",
-            Status::Win(Player::P2),
+            Outcome::Win(Player::P2),
             Some([(0, 0), (1, 1), (2, 2), (3, 3)]),
         )
     }
@@ -693,7 +724,7 @@ mod tests {
         // _ _ _ X X X O
         test_end_game(
             "4766545544",
-            Status::Win(Player::P2),
+            Outcome::Win(Player::P2),
             Some([(3, 3), (4, 2), (5, 1), (6, 0)]),
         )
     }
@@ -708,7 +739,7 @@ mod tests {
         // X O O X O O X
         test_end_game(
             "1226716747711226634543355137524",
-            Status::Win(Player::P1),
+            Outcome::Win(Player::P1),
             // currently chooses ascending diagonal over other directions, but the implementation is subject to change in the future
             Some([(0, 0), (1, 1), (2, 2), (3, 3)]),
         )
@@ -724,7 +755,7 @@ mod tests {
         // X O X X X O X
         test_end_game(
             "111112222233333144444255555376666667777754",
-            Status::Win(Player::P2),
+            Outcome::Win(Player::P2),
             Some([(0, 5), (1, 5), (2, 5), (3, 5)]),
         )
     }
@@ -739,7 +770,7 @@ mod tests {
         // X X X O X X X
         test_end_game(
             "111111222222333333544444455555666666777777",
-            Status::Draw,
+            Outcome::Draw,
             None,
         )
     }
