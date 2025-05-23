@@ -51,9 +51,9 @@ impl Not for Player {
 impl fmt::Display for Player {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self == &Self::P1 {
-            write!(f, "X")
+            write!(f, "\x1b[1;31mX\x1b[0m")
         } else {
-            write!(f, "O")
+            write!(f, "\x1b[1;33mO\x1b[0m")
         }
     }
 }

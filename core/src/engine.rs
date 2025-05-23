@@ -8,7 +8,9 @@
 //! * A negative score signifies that the current player will lose.
 //!   * A position has the score of -1 if the player loses with their last piece, -2 if the player loses with their second to last piece, etc.
 
-use crate::{bitboard, Board, Cache, Game, AREA, WIDTH};
+use crate::{bitboard, Board, Cache, Game, Outcome, Player, AREA, WIDTH};
+use std::cmp::{Ordering, Reverse};
+use std::fmt;
 
 /// The minimum possible score of a game position.
 pub const MIN_SCORE: i8 = -MAX_SCORE;
@@ -28,52 +30,11 @@ const REV_MOVE_ORDER: [u8; WIDTH as usize] = {
     moves
 };
 
-/// An array of moves by number of winning moves, sorted in ascending order.
-///
-/// # Implementation
-/// An insertion sort algorithm is used because it performs well on small arrays and is online (able to sort elements as it receives them).
-/// The time complexity is O(n) best case and O(n^2) worst case, and the space complexity is O(1).
-#[derive(Default)]
-struct MoveSorter {
-    entries: [(u64, u32); WIDTH as usize],
-    len: usize,
-}
-
-impl MoveSorter {
-    /// Creates a new, empty move sorter.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Inserts a move, represented as a bitboard, and its number of winning moves into the move sorter, ensuring that the array remains sorted.
-    pub fn insert(&mut self, move_board: u64, num_winning_moves: u32) {
-        let mut index = self.len;
-        self.len += 1;
-
-        while index != 0 && self.entries[index - 1].1 > num_winning_moves {
-            self.entries[index] = self.entries[index - 1];
-            index -= 1;
-        }
-
-        self.entries[index] = (move_board, num_winning_moves);
-    }
-}
-
-impl Iterator for MoveSorter {
-    type Item = u64;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.len == 0 {
-            None
-        } else {
-            self.len -= 1;
-            Some(self.entries[self.len].0)
-        }
-    }
-}
+/// Represents the outcome of a game and the number of moves taken by both players until the outcome is reached.
+pub type Prediction = (Outcome, u8);
 
 /// A solver and analyzer for the game of Connect Four.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Engine {
     /// The number of nodes visited.
     node_count: u64,
@@ -100,6 +61,17 @@ impl Engine {
     /// Returns the number of nodes visited in the last evaluation.
     pub fn node_count(&self) -> u64 {
         self.node_count
+    }
+
+    pub fn analyze(&mut self, game: &Game) -> Analysis {
+        let num_moves = game.num_moves();
+        let scores = self.evaluate_next(game);
+
+        Analysis {
+            scores,
+            player: game.turn(),
+            num_moves,
+        }
     }
 
     /// Evaluates a game position, returning its score.
@@ -234,6 +206,218 @@ impl Engine {
         }
         self.tt_cache.insert(board.key(), alpha);
         alpha
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Rating {
+    Best,
+    Good,
+    Inaccuracy,
+    Mistake,
+    Blunder,
+}
+
+impl fmt::Display for Rating {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Rating::Best => write!(f, "!!"),
+            Rating::Good => write!(f, "!"),
+            Rating::Inaccuracy => write!(f, "?!"),
+            Rating::Mistake => write!(f, "?"),
+            Rating::Blunder => write!(f, "??"),
+        }
+    }
+}
+pub struct Analysis {
+    pub scores: [Option<i8>; WIDTH as usize],
+    player: Player,
+    num_moves: u8,
+}
+
+impl Analysis {
+    pub fn best_score(&self) -> Option<i8> {
+        self.scores.iter().flatten().max().cloned()
+    }
+
+    /// Returns a vector of 0-indexed columns representing the moves with the highest scores that can be played next from the array of [`Engine::evaluate_next`].
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::{Game, Engine};
+    ///
+    /// let game = Game::from_str("4444413222453233535")?;
+    /// let mut engine = Engine::new();
+    ///
+    /// let moves = engine.analyze(&game).best_moves();
+    /// assert_eq!(moves, vec![4]);
+    /// # Ok::<(), connect_four_engine::MoveError>(())
+    /// ```
+    pub fn best_moves(&self) -> Vec<u8> {
+        let best = self.best_score();
+        let mut best_moves = Vec::new();
+
+        for (score, i) in self.scores.iter().zip(0..WIDTH) {
+            if score == &best {
+                best_moves.push(i);
+            }
+        }
+
+        best_moves
+    }
+
+    /// Returns a vector of 0-indexed columns representing the moves from highest to lowest score.
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::{Game, Engine};
+    ///
+    /// let game = Game::from_str("32164625")?;
+    /// let mut engine = Engine::new();
+    ///
+    /// let moves = engine.analyze(&game).sorted_moves();
+    /// assert_eq!(moves, vec![2, 3, 4, 5, 1, 0, 6]);
+    /// # Ok::<(), connect_four_engine::MoveError>(())
+    /// ```
+    pub fn sorted_moves(&self) -> Vec<u8> {
+        let mut scores_with_index: Vec<_> = self
+            .scores
+            .iter()
+            .zip(0..WIDTH)
+            .filter(|(score, _)| score.is_some())
+            .collect();
+
+        scores_with_index.sort_by_key(|&(score, _)| Reverse(score));
+        scores_with_index.iter().map(|(_, i)| *i).collect()
+    }
+
+    pub fn prediction(&self) -> [Option<Prediction>; WIDTH as usize] {
+        let mut prediction = [None; WIDTH as usize];
+
+        for (i, s) in self.scores.iter().enumerate() {
+            if let Some(score) = s {
+                prediction[i] = Some(self.predict(*score));
+            }
+        }
+
+        prediction
+    }
+
+    pub fn predict(&self, score: i8) -> Prediction {
+        let moves_left = AREA - self.num_moves;
+        match score.cmp(&0) {
+            Ordering::Less => (
+                Outcome::Win(!self.player),
+                moves_left / 2 + 1 - score.unsigned_abs(),
+            ),
+            Ordering::Equal => (Outcome::Draw, (moves_left + 1) / 2),
+            Ordering::Greater => (
+                Outcome::Win(self.player),
+                (moves_left + 1) / 2 + 1 - score.unsigned_abs(),
+            ),
+        }
+    }
+
+    /// Returns an array of [`Ratings`](Rating) for the possible moves of the game position.
+    /// An element of the array is [`None`] if the move cannot be played.
+    ///
+    /// # Example
+    /// ```
+    /// use connect_four_engine::{Game, Engine, Rating};
+    ///
+    /// let game = Game::from_str("43323213")?;
+    /// let mut engine = Engine::new();
+    ///
+    /// let moves = engine.analyze(&game).ratings();
+    /// assert_eq!(moves, [Some(Rating::Inaccuracy), Some(Rating::Best), Some(Rating::Inaccuracy), Some(Rating::Blunder), Some(Rating::Mistake), Some(Rating::Mistake), Some(Rating::Inaccuracy)]);
+    /// # Ok::<(), connect_four_engine::MoveError>(())
+    /// ```
+    pub fn ratings(&self) -> [Option<Rating>; WIDTH as usize] {
+        let Some(best) = self.best_score() else {
+            return [None; WIDTH as usize];
+        };
+
+        let (best_outcome, best_turns) = self.predict(best);
+        let prediction = self.prediction();
+
+        let mut ratings = [None; WIDTH as usize];
+        for (i, (s, p)) in self.scores.iter().zip(prediction).enumerate() {
+            if let Some(score) = *s {
+                let (outcome, turns) = p.expect("should not be None if score is not None");
+                if score == best {
+                    ratings[i] = Some(Rating::Best);
+                } else if (best_outcome == Outcome::Win(self.player) && best_turns <= 2)
+                    || (outcome == Outcome::Win(!self.player) && turns <= 2)
+                {
+                    // Missed win or block in 1-2 turns
+                    ratings[i] = Some(Rating::Blunder);
+                } else {
+                    ratings[i] = Some(self.rate(score, best));
+                }
+            }
+        }
+        ratings
+    }
+
+    fn rate(&self, score: i8, best: i8) -> Rating {
+        let mut diff = score.abs_diff(best) as i8;
+        if best > 0 && score < 0 {
+            diff += 2;
+        }
+
+        if diff >= MAX_SCORE / 2 {
+            Rating::Blunder
+        } else if diff >= MAX_SCORE / 3 {
+            Rating::Mistake
+        } else if diff >= MAX_SCORE / 4 {
+            Rating::Inaccuracy
+        } else {
+            Rating::Good
+        }
+    }
+}
+
+/// An array of moves by number of winning moves, sorted in ascending order.
+///
+/// # Implementation
+/// An insertion sort algorithm is used because it performs well on small arrays and is online (able to sort elements as it receives them).
+/// The time complexity is O(n) best case and O(n^2) worst case, and the space complexity is O(1).
+#[derive(Default)]
+struct MoveSorter {
+    entries: [(u64, u32); WIDTH as usize],
+    len: usize,
+}
+
+impl MoveSorter {
+    /// Creates a new, empty move sorter.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Inserts a move, represented as a bitboard, and its number of winning moves into the move sorter, ensuring that the array remains sorted.
+    pub fn insert(&mut self, move_board: u64, num_winning_moves: u32) {
+        let mut index = self.len;
+        self.len += 1;
+
+        while index != 0 && self.entries[index - 1].1 > num_winning_moves {
+            self.entries[index] = self.entries[index - 1];
+            index -= 1;
+        }
+
+        self.entries[index] = (move_board, num_winning_moves);
+    }
+}
+
+impl Iterator for MoveSorter {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.len == 0 {
+            None
+        } else {
+            self.len -= 1;
+            Some(self.entries[self.len].0)
+        }
     }
 }
 

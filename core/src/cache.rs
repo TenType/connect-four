@@ -7,6 +7,7 @@ use std::collections::HashMap;
 pub const BUFFER_DELIMIT: u32 = 1;
 
 /// A cache associating keys and scores of previously-computed positions.
+#[derive(Clone)]
 pub struct Cache {
     max_depth: u8,
     table: HashMap<u64, i8>,
@@ -35,6 +36,7 @@ impl Cache {
     /// # Bytes Format
     /// - First byte: the maximum depth of the cache.
     /// - Remaining bytes: buffers of little-endian u32s, representing base-3 keys.
+    ///
     /// Each buffer is delimited by [`BUFFER_DELIMIT`] and is associated with a score, starting from [`MIN_SCORE`] incrementing up to [`MAX_SCORE`].
     pub fn from_bytes(bytes: Vec<u8>) -> Option<Self> {
         let (max_depth, rest_bytes) = bytes.split_first()?;

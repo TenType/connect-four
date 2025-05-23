@@ -51,13 +51,16 @@ fn main() {
         );
 
         let now = Instant::now();
-        let scores = engine.evaluate_next(&game);
+        let analysis = engine.analyze(&game);
         let time = now.elapsed();
 
         println!(
-            "Next: {scores:?} in {time:.3?} with {} nodes ({} in tt_cache)",
+            "Next: {:?} in {time:.3?} with {} nodes ({} in tt_cache)",
+            analysis.scores,
             engine.node_count(),
             engine.tt_cache.len(),
         );
+
+        println!("Ratings: {:?}", analysis.ratings());
     }
 }

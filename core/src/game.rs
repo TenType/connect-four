@@ -1,48 +1,15 @@
 //! Functionality for creating and playing the game of Connect Four.
 
 use crate::{bitboard, Board, MoveError, Player, WinDirection, AREA, HEIGHT, WIDTH};
-use std::{array, cmp::Ordering, collections::HashSet, fmt, str::FromStr};
+use std::{array, collections::HashSet, fmt, str::FromStr};
 
 /// Represents the end result of a game.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Outcome {
     /// The game has ended in a draw.
     Draw,
     /// The game has ended with a winner represented by [`Player`].
     Win(Player),
-}
-
-impl Outcome {
-    /// Returns the outcome of a game position and the number of moves taken by both players until the game can end.
-    ///
-    /// # Examples
-    /// ```
-    /// use connect_four_engine::{Outcome, Player, AREA, MIN_SCORE, MAX_SCORE};
-    ///
-    /// // Start of the game
-    /// assert_eq!(Outcome::from_score(1, Player::P1, 0), (Outcome::Win(Player::P1), AREA / 2));
-    /// assert_eq!(Outcome::from_score(-1, Player::P1, 0), (Outcome::Win(Player::P2), AREA / 2));
-    /// assert_eq!(Outcome::from_score(0, Player::P1, 0), (Outcome::Draw, AREA / 2));
-    ///
-    /// // Game can end in 1 turn
-    /// assert_eq!(Outcome::from_score(MAX_SCORE, Player::P1, 6), (Outcome::Win(Player::P1), 1));
-    /// assert_eq!(Outcome::from_score(MIN_SCORE, Player::P1, 6), (Outcome::Win(Player::P2), 1));
-    /// assert_eq!(Outcome::from_score(0, Player::P1, AREA - 1), (Outcome::Draw, 1));
-    /// ```
-    pub fn from_score(score: i8, player: Player, num_moves: u8) -> (Self, u8) {
-        let moves_left = AREA - num_moves;
-        match score.cmp(&0) {
-            Ordering::Less => (
-                Self::Win(!player),
-                moves_left / 2 + 1 - score.unsigned_abs(),
-            ),
-            Ordering::Equal => (Self::Draw, (moves_left + 1) / 2),
-            Ordering::Greater => (
-                Self::Win(player),
-                (moves_left + 1) / 2 + 1 - score.unsigned_abs(),
-            ),
-        }
-    }
 }
 
 /// Represents a Connect Four game.
