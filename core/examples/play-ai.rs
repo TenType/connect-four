@@ -1,7 +1,6 @@
 mod common;
 
-use connect_four_engine::{Cache, Engine, Game, Outcome, Player};
-use rand::Rng;
+use connect_four_engine::{Agent, AgentDifficulty, Cache, Engine, Game, Outcome, Player};
 use std::io::{self, Write};
 use std::time::Instant;
 use std::{env, fs};
@@ -9,8 +8,24 @@ use std::{env, fs};
 fn main() {
     let args: Vec<String> = env::args().collect();
 
+    let ai_difficulty = if let Some(s) = args.get(1) {
+        let s = s.to_lowercase();
+        match s.as_str() {
+            "1" | "random" => AgentDifficulty::Random,
+            "2" | "easy" => AgentDifficulty::Easy,
+            "3" | "moderate" => AgentDifficulty::Moderate,
+            "4" | "advanced" => AgentDifficulty::Advanced,
+            "5" | "perfect" => AgentDifficulty::Perfect,
+            _ => {
+                panic!("invalid AI difficulty argument, must be a number 1-5 or a difficulty name")
+            }
+        }
+    } else {
+        AgentDifficulty::Perfect
+    };
+
     // Use opening book if provided
-    let mut engine = if let Some(path) = args.get(1) {
+    let mut engine = if let Some(path) = args.get(2) {
         let bytes = fs::read(path).expect("cannot read file");
         let size = bytes.len() as f64 / 1024.0 / 1024.0;
         let cache = Cache::from_bytes(bytes).expect("file should have correct bytes format");
@@ -24,7 +39,7 @@ fn main() {
         Engine::new()
     };
 
-    let human_player = match args.get(2) {
+    let human_player = match args.get(3) {
         Some(s) if s == "1" => Player::P1,
         Some(s) if s == "2" => Player::P2,
         None => Player::P1,
@@ -32,7 +47,7 @@ fn main() {
     };
 
     let mut game = Game::new();
-    let mut rng = rand::rng();
+    let mut agent = Agent::new(ai_difficulty);
 
     loop {
         println!("{game}");
@@ -49,7 +64,7 @@ fn main() {
         let analysis = engine.analyze(&game);
         let time = now.elapsed();
 
-        common::print_next_analysis(&analysis);
+        // common::print_next_analysis(&analysis);
 
         println!(
             "\x1b[30mAnalyzed in {time:.3?} with {} nodes ({} in tt_cache)\x1b[0m",
@@ -63,10 +78,12 @@ fn main() {
 
             print!("{0:?} {0} > ", turn);
             if turn != human_player {
-                let best_moves = analysis.best_moves();
-                let chosen_move = best_moves[rng.random_range(0..best_moves.len())];
-                println!("{} \x1b[1;36m(AI move)\x1b[0m", chosen_move + 1);
+                let chosen_move = agent.choose_move(&analysis);
                 game.play(chosen_move).expect("ai move should be valid");
+                println!(
+                    "{} \x1b[1;36m(AI: {ai_difficulty:?})\x1b[0m",
+                    chosen_move + 1
+                );
                 break;
             }
             io::stdout().flush().unwrap();

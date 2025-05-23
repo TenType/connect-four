@@ -209,13 +209,13 @@ impl Engine {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(PartialOrd, Ord, Eq, PartialEq, Clone, Copy, Debug)]
 pub enum Rating {
-    Best,
-    Good,
-    Inaccuracy,
-    Mistake,
     Blunder,
+    Mistake,
+    Inaccuracy,
+    Good,
+    Best,
 }
 
 impl fmt::Display for Rating {

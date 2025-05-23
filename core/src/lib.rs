@@ -1,5 +1,8 @@
 //! A library for playing, solving, and analyzing the game of [Connect Four](https://en.wikipedia.org/wiki/Connect_Four).
 
+mod agent;
+pub use agent::*;
+
 mod bitboard;
 
 mod board;
