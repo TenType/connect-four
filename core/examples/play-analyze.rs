@@ -1,5 +1,6 @@
-use connect_four_engine::{Cache, Engine, Game, Outcome, Rating};
-use std::cmp::Ordering;
+mod common;
+
+use connect_four_engine::{Cache, Engine, Game, Outcome};
 use std::io::{self, Write};
 use std::time::Instant;
 use std::{env, fs};
@@ -38,46 +39,7 @@ fn main() {
         let analysis = engine.analyze(&game);
         let time = now.elapsed();
 
-        let prediction = analysis.prediction();
-
-        for (i, (s, p)) in analysis.scores.iter().zip(prediction).enumerate() {
-            if let Some(score) = s {
-                match score.cmp(&0) {
-                    Ordering::Less => print!("\x1b[1;31m{score:3}"),
-                    Ordering::Equal => print!("\x1b[1;37m ±0"),
-                    Ordering::Greater => print!("\x1b[1;32m{score:+3}"),
-                }
-                print!(" in {:?}", p.unwrap().1);
-            } else {
-                print!("~~~");
-            }
-            print!("\x1b[0m");
-            if i < analysis.scores.len() - 1 {
-                print!(" | ");
-            }
-        }
-        println!();
-
-        let ratings = analysis.ratings();
-
-        for (i, rating) in ratings.iter().enumerate() {
-            if let Some(r) = rating {
-                match r {
-                    Rating::Best => print!("\x1b[1;32m !!"),
-                    Rating::Good => print!("\x1b[1;32m OK"),
-                    Rating::Inaccuracy => print!("\x1b[1;34m ?!"),
-                    Rating::Mistake => print!("\x1b[1;33m ? "),
-                    Rating::Blunder => print!("\x1b[1;31m ??"),
-                }
-            } else {
-                print!("~~~");
-            }
-            print!("\x1b[0m");
-            if i < analysis.scores.len() - 1 {
-                print!(" | ");
-            }
-        }
-        println!();
+        common::print_next_analysis(&analysis);
 
         println!(
             "\x1b[30mAnalyzed in {time:.3?} with {} nodes ({} in tt_cache)\x1b[0m",
@@ -133,36 +95,11 @@ fn main() {
                         let digit = first_char.to_digit(10).expect("move should be valid");
                         let last_move = u8::try_from(digit).unwrap() - 1;
 
-                        let mut best_moves = analysis.best_moves();
-                        match ratings[last_move as usize].expect("column should not be full") {
-                            Rating::Best => {
-                                print!("\x1b[1;32mBest move!");
-                                best_moves.retain(|x| x != &last_move);
-                                if !best_moves.is_empty() {
-                                    print!(" Alternatives: {}", best_moves_str(best_moves));
-                                }
-                                println!("\x1b[0m");
-                                break;
-                            }
-                            Rating::Good => print!("\x1b[1;32mGood move."),
-                            Rating::Inaccuracy => print!("\x1b[1;34mInaccuracy."),
-                            Rating::Mistake => print!("\x1b[1;33mMistake."),
-                            Rating::Blunder => print!("\x1b[1;31mBlunder."),
-                        }
-                        print!(" Best was column {}.", best_moves_str(best_moves));
-                        println!("\x1b[0m");
+                        common::print_move_rating(&analysis, last_move);
                         break;
                     }
                 }
             }
         }
     }
-}
-
-fn best_moves_str(best_moves: Vec<u8>) -> String {
-    best_moves
-        .iter()
-        .map(|x| (x + 1).to_string())
-        .collect::<Vec<String>>()
-        .join(", ")
 }

@@ -1,4 +1,6 @@
-use connect_four_engine::{Cache, Engine, Game, Outcome, Player, Rating};
+mod common;
+
+use connect_four_engine::{Cache, Engine, Game, Outcome, Player};
 use rand::Rng;
 use std::io::{self, Write};
 use std::time::Instant;
@@ -47,13 +49,13 @@ fn main() {
         let analysis = engine.analyze(&game);
         let time = now.elapsed();
 
+        common::print_next_analysis(&analysis);
+
         println!(
             "\x1b[30mAnalyzed in {time:.3?} with {} nodes ({} in tt_cache)\x1b[0m",
             engine.node_count(),
             engine.tt_cache.len(),
         );
-
-        let mut best_moves = analysis.best_moves();
 
         loop {
             let mut input = String::new();
@@ -61,6 +63,7 @@ fn main() {
 
             print!("{0:?} {0} > ", turn);
             if turn != human_player {
+                let best_moves = analysis.best_moves();
                 let chosen_move = best_moves[rng.random_range(0..best_moves.len())];
                 println!("{} \x1b[1;36m(AI move)\x1b[0m", chosen_move + 1);
                 game.play(chosen_move).expect("ai move should be valid");
@@ -117,36 +120,11 @@ fn main() {
                         let digit = first_char.to_digit(10).expect("move should be valid");
                         let last_move = u8::try_from(digit).unwrap() - 1;
 
-                        let ratings = analysis.ratings();
-                        match ratings[last_move as usize].expect("column should not be full") {
-                            Rating::Best => {
-                                print!("\x1b[1;32mBest move!");
-                                best_moves.retain(|x| x != &last_move);
-                                if !best_moves.is_empty() {
-                                    print!(" Alternatives: {}", best_moves_str(best_moves));
-                                }
-                                println!("\x1b[0m");
-                                break;
-                            }
-                            Rating::Good => print!("\x1b[1;32mGood move."),
-                            Rating::Inaccuracy => print!("\x1b[1;34mInaccuracy."),
-                            Rating::Mistake => print!("\x1b[1;33mMistake."),
-                            Rating::Blunder => print!("\x1b[1;31mBlunder."),
-                        }
-                        print!(" Best was column {}.", best_moves_str(best_moves));
-                        println!("\x1b[0m");
+                        common::print_move_rating(&analysis, last_move);
                         break;
                     }
                 }
             }
         }
     }
-}
-
-fn best_moves_str(best_moves: Vec<u8>) -> String {
-    best_moves
-        .iter()
-        .map(|x| (x + 1).to_string())
-        .collect::<Vec<String>>()
-        .join(", ")
 }
