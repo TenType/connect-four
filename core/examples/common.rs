@@ -90,11 +90,17 @@ pub fn print_move_rating(analysis: &Analysis, col: u8) {
 }
 
 fn format_moves_str(moves: Vec<u8>) -> String {
-    moves
-        .iter()
-        .map(|x| (x + 1).to_string())
-        .collect::<Vec<String>>()
-        .join(", ")
+    let moves: Vec<String> = moves.iter().map(|x| (x + 1).to_string()).collect();
+    match moves.len() {
+        0 => String::new(),
+        1 => moves[0].clone(),
+        2 => format!("{} or {}", moves[0], moves[1]),
+        _ => {
+            let all_but_last = &moves[..moves.len() - 1];
+            let last = &moves[moves.len() - 1];
+            format!("{}, or {}", all_but_last.join(", "), last)
+        }
+    }
 }
 
 #[allow(dead_code)]
