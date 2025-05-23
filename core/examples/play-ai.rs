@@ -46,6 +46,14 @@ fn main() {
         _ => panic!("invalid human player argument, must either be 1 or 2"),
     };
 
+    let feedback = match args.get(4) {
+        Some(s) if s == "0" => 0,
+        Some(s) if s == "1" => 1,
+        Some(s) if s == "2" => 2,
+        None => 0,
+        _ => panic!("invalid feedback argument, must either be 0, 1, or 2"),
+    };
+
     let mut game = Game::new();
     let mut agent = Agent::new(ai_difficulty);
 
@@ -64,7 +72,9 @@ fn main() {
         let analysis = engine.analyze(&game);
         let time = now.elapsed();
 
-        // common::print_next_analysis(&analysis);
+        if feedback >= 2 {
+            common::print_next_analysis(&analysis);
+        }
 
         println!(
             "\x1b[30mAnalyzed in {time:.3?} with {} nodes ({} in tt_cache)\x1b[0m",
@@ -133,11 +143,12 @@ fn main() {
                     } else if let Err(e) = game.play_str(input) {
                         eprintln!("{e}");
                     } else if turn == human_player {
-                        let first_char = input.chars().next().expect("move should exist");
-                        let digit = first_char.to_digit(10).expect("move should be valid");
-                        let last_move = u8::try_from(digit).unwrap() - 1;
-
-                        common::print_move_rating(&analysis, last_move);
+                        if feedback >= 1 {
+                            let first_char = input.chars().next().expect("move should exist");
+                            let digit = first_char.to_digit(10).expect("move should be valid");
+                            let last_move = u8::try_from(digit).unwrap() - 1;
+                            common::print_move_rating(&analysis, last_move);
+                        }
                         break;
                     }
                 }
