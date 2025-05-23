@@ -310,10 +310,10 @@ impl Analysis {
                 Outcome::Win(!self.player),
                 moves_left / 2 + 1 - score.unsigned_abs(),
             ),
-            Ordering::Equal => (Outcome::Draw, (moves_left + 1) / 2),
+            Ordering::Equal => (Outcome::Draw, moves_left.div_ceil(2)),
             Ordering::Greater => (
                 Outcome::Win(self.player),
-                (moves_left + 1) / 2 + 1 - score.unsigned_abs(),
+                moves_left.div_ceil(2) + 1 - score.unsigned_abs(),
             ),
         }
     }
