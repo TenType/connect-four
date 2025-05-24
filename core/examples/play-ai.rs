@@ -106,10 +106,24 @@ fn main() {
             }
 
             match input {
+                "a" | "analyze" => {
+                    common::print_next_analysis(&analysis);
+                }
                 "c" | "clear" => {
                     game = Game::new();
                     println!("Cleared");
                     break;
+                }
+                "e" | "eval" | "evaluate" => {
+                    let now = Instant::now();
+                    let score = engine.evaluate(&game);
+                    let time = now.elapsed();
+
+                    println!(
+                        "Evaluated {score:+} in {time:.3?} with {} nodes ({} in tt_cache)",
+                        engine.node_count(),
+                        engine.tt_cache.len(),
+                    );
                 }
                 "m" | "moves" => {
                     let moves = game.moves_str();
