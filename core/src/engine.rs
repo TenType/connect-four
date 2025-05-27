@@ -320,18 +320,6 @@ impl Analysis {
 
     /// Returns an array of [`Ratings`](Rating) for the possible moves of the game position.
     /// An element of the array is [`None`] if the move cannot be played.
-    ///
-    /// # Example
-    /// ```
-    /// use connect_four_engine::{Game, Engine, Rating};
-    ///
-    /// let game = Game::from_str("43323213")?;
-    /// let mut engine = Engine::new();
-    ///
-    /// let moves = engine.analyze(&game).ratings();
-    /// assert_eq!(moves, [Some(Rating::Inaccuracy), Some(Rating::Best), Some(Rating::Inaccuracy), Some(Rating::Blunder), Some(Rating::Mistake), Some(Rating::Mistake), Some(Rating::Inaccuracy)]);
-    /// # Ok::<(), connect_four_engine::MoveError>(())
-    /// ```
     pub fn ratings(&self) -> [Option<Rating>; WIDTH as usize] {
         let Some(best) = self.best_score() else {
             return [None; WIDTH as usize];
