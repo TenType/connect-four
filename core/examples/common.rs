@@ -2,12 +2,12 @@ use connect_four_engine::{Analysis, Rating};
 use std::cmp::Ordering;
 
 pub fn print_next_analysis(analysis: &Analysis) {
-    let prediction = analysis.prediction();
+    let predictions = analysis.predictions();
 
     println!("{:=<43}", "");
 
     print!("| ");
-    for (i, (s, p)) in analysis.scores.iter().zip(prediction).enumerate() {
+    for (i, (s, p)) in analysis.scores.iter().zip(predictions).enumerate() {
         if let Some(score) = s {
             match score.cmp(&0) {
                 Ordering::Less => print!("\x1b[1;31mL"),
@@ -26,7 +26,7 @@ pub fn print_next_analysis(analysis: &Analysis) {
     println!(" |");
 
     print!("| ");
-    for (i, (s, _)) in analysis.scores.iter().zip(prediction).enumerate() {
+    for (i, s) in analysis.scores.iter().enumerate() {
         if let Some(score) = s {
             match score.cmp(&0) {
                 Ordering::Less => print!("\x1b[1;31m{score:3}"),
@@ -43,22 +43,40 @@ pub fn print_next_analysis(analysis: &Analysis) {
     }
     println!(" |");
 
-    let ratings = analysis.ratings();
-
     print!("| ");
-    for (i, rating) in ratings.iter().enumerate() {
-        if let Some(r) = rating {
-            match r {
-                Rating::Best => print!("\x1b[1;32m !!"),
-                Rating::Good => print!("\x1b[1;32m OK"),
-                Rating::Inaccuracy => print!("\x1b[1;34m ?!"),
-                Rating::Mistake => print!("\x1b[1;33m ? "),
-                Rating::Blunder => print!("\x1b[1;31m ??"),
+    for (i, s) in analysis.scores.iter().enumerate() {
+        if let Some(score) = s {
+            let rel_score = analysis.amplified_score(*score);
+            match rel_score.cmp(&0) {
+                Ordering::Less => print!("\x1b[1;31m{rel_score:3}"),
+                Ordering::Equal => print!("\x1b[1;37m ±0"),
+                Ordering::Greater => print!("\x1b[1;32m{rel_score:+3}"),
             }
         } else {
             print!("===");
         }
         print!("\x1b[0m");
+        if i < analysis.scores.len() - 1 {
+            print!(" | ");
+        }
+    }
+    println!(" |");
+
+    let ratings = analysis.ratings();
+
+    print!("| ");
+    for (i, rating) in ratings.iter().enumerate() {
+        if let Some(r) = rating {
+            let color = match r {
+                Rating::Best | Rating::Good => "\x1b[1;32m",
+                Rating::Inaccuracy => "\x1b[1;34m",
+                Rating::Mistake => "\x1b[1;33m",
+                Rating::Blunder => "\x1b[1;31m",
+            };
+            print!("{color}{:>3}\x1b[0m", r.to_string());
+        } else {
+            print!("===");
+        }
         if i < analysis.scores.len() - 1 {
             print!(" | ");
         }

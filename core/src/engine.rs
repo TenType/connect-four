@@ -222,7 +222,7 @@ impl fmt::Display for Rating {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Rating::Best => write!(f, "!!"),
-            Rating::Good => write!(f, "!"),
+            Rating::Good => write!(f, "OK"),
             Rating::Inaccuracy => write!(f, "?!"),
             Rating::Mistake => write!(f, "?"),
             Rating::Blunder => write!(f, "??"),
@@ -231,7 +231,7 @@ impl fmt::Display for Rating {
 }
 pub struct Analysis {
     pub scores: [Option<i8>; WIDTH as usize],
-    player: Player,
+    pub player: Player,
     num_moves: u8,
 }
 
@@ -291,16 +291,16 @@ impl Analysis {
         scores_with_index.iter().map(|(_, i)| *i).collect()
     }
 
-    pub fn prediction(&self) -> [Option<Prediction>; WIDTH as usize] {
-        let mut prediction = [None; WIDTH as usize];
+    pub fn predictions(&self) -> [Option<Prediction>; WIDTH as usize] {
+        let mut predictions = [None; WIDTH as usize];
 
         for (i, s) in self.scores.iter().enumerate() {
             if let Some(score) = s {
-                prediction[i] = Some(self.predict(*score));
+                predictions[i] = Some(self.predict(*score));
             }
         }
 
-        prediction
+        predictions
     }
 
     pub fn predict(&self, score: i8) -> Prediction {
@@ -336,40 +336,39 @@ impl Analysis {
         let Some(best) = self.best_score() else {
             return [None; WIDTH as usize];
         };
-
-        let (best_outcome, best_turns) = self.predict(best);
-        let prediction = self.prediction();
-
         let mut ratings = [None; WIDTH as usize];
-        for (i, (s, p)) in self.scores.iter().zip(prediction).enumerate() {
+        for (i, s) in self.scores.iter().enumerate() {
             if let Some(score) = *s {
-                let (outcome, turns) = p.expect("should not be None if score is not None");
-                if score == best {
-                    ratings[i] = Some(Rating::Best);
-                } else if (best_outcome == Outcome::Win(self.player) && best_turns <= 2)
-                    || (outcome == Outcome::Win(!self.player) && turns <= 2)
-                {
-                    // Missed win or block in 1-2 turns
-                    ratings[i] = Some(Rating::Blunder);
-                } else {
-                    ratings[i] = Some(self.rate(score, best));
-                }
+                ratings[i] = Some(self.rate(score, best));
             }
         }
         ratings
     }
 
+    pub fn amplified_score(&self, score: i8) -> i8 {
+        let balanced_score = match score.cmp(&0) {
+            Ordering::Less => score - self.num_moves.div_ceil(2) as i8,
+            Ordering::Equal => 0,
+            Ordering::Greater => score + self.num_moves as i8 / 2,
+        };
+        let multiplier = 2.0_f32.powf(-(self.predict(score).1 as f32) + 1.0) + 1.0;
+        (balanced_score as f32 * multiplier).round() as i8
+    }
+
     fn rate(&self, score: i8, best: i8) -> Rating {
-        let mut diff = score.abs_diff(best) as i8;
-        if best > 0 && score < 0 {
-            diff += 2;
+        if score == best {
+            return Rating::Best;
         }
 
-        if diff >= MAX_SCORE / 2 {
+        let score = self.amplified_score(score);
+        let best = self.amplified_score(best);
+        let diff = score.abs_diff(best);
+
+        if diff >= AREA / 2 {
             Rating::Blunder
-        } else if diff >= MAX_SCORE / 3 {
+        } else if diff >= AREA / 3 {
             Rating::Mistake
-        } else if diff >= MAX_SCORE / 4 {
+        } else if diff >= AREA / 6 || best.signum() != score.signum() {
             Rating::Inaccuracy
         } else {
             Rating::Good

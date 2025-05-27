@@ -11,10 +11,11 @@ fn main() {
     let ai_difficulty = if let Some(s) = args.get(1) {
         let s = s.to_lowercase();
         match s.as_str() {
-            "1" | "random" => AgentDifficulty::Random,
-            "2" | "easy" => AgentDifficulty::Easy,
-            "3" | "moderate" => AgentDifficulty::Moderate,
-            "4" | "advanced" => AgentDifficulty::Advanced,
+            "0" | "random" => AgentDifficulty::Random,
+            "1" | "easy" => AgentDifficulty::Easy,
+            "2" | "medium" => AgentDifficulty::Medium,
+            "3" | "hard" => AgentDifficulty::Hard,
+            "4" | "nearperfect" => AgentDifficulty::NearPerfect,
             "5" | "perfect" => AgentDifficulty::Perfect,
             _ => {
                 panic!("invalid AI difficulty argument, must be a number 1-5 or a difficulty name")
