@@ -436,6 +436,33 @@ impl Game {
         })
     }
 
+    /// Mirrors the board so its columns are reflected horizontally (left-to-right).
+    ///
+    /// # Examples
+    /// ```
+    /// use connect_four_engine::{Game, Player};
+    ///
+    /// let mut game = Game::new();
+    /// game.play(2)?;
+    /// game.play(3)?;
+    /// game.play(6)?;
+    /// game.mirror();
+    ///
+    /// assert_eq!(game.at(0, 0), Some(Player::P1));
+    /// assert_eq!(game.at(2, 0), None);
+    /// assert_eq!(game.at(3, 0), Some(Player::P2));
+    /// assert_eq!(game.at(4, 0), Some(Player::P1));
+    /// assert_eq!(game.moves(), &[4, 3, 0]);
+    /// # Ok::<(), connect_four_engine::MoveError>(())
+    /// ```
+    pub fn mirror(&mut self) {
+        self.board.mirror();
+        let max_col = WIDTH - 1;
+        for col in self.moves.iter_mut() {
+            *col = max_col - *col;
+        }
+    }
+
     /// Returns the number of unique game positions at a specific depth.
     ///
     /// # Warning

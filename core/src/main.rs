@@ -119,6 +119,10 @@ fn main() {
                         engine.tt_cache.len(),
                     );
                 }
+                "f" | "flip" | "mirror" => {
+                    game.mirror();
+                    println!("{game}");
+                }
                 "m" | "moves" => {
                     let moves = game.moves_str();
                     if moves.is_empty() {

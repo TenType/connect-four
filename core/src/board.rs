@@ -198,6 +198,12 @@ impl Board {
         x & (self.occupied_bb ^ bitboard::FULL_BOARD_MASK)
     }
 
+    /// Mirrors the board so its columns are reflected horizontally (left-to-right).
+    pub(crate) fn mirror(&mut self) {
+        self.player_bb = bitboard::mirror(self.player_bb);
+        self.occupied_bb = bitboard::mirror(self.occupied_bb);
+    }
+
     pub(crate) fn position_score(&self, win_this_turn: bool) -> i8 {
         if win_this_turn {
             (AREA - self.num_moves + 1) as i8 / 2
