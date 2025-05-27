@@ -1,5 +1,6 @@
 [workspace]
 members = ["core", "web"]
+resolver = "3"
 
 [profile.release]
 lto = true
